@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<html>
+<head>
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-sparklines/2.1.2/jquery.sparkline.js" integrity="sha256-LyvLC4QvPtUU7GAeXnI4atDtDDSKOtUFoIRsysvDSDQ=" crossorigin="anonymous"></script>
+  <script language="javascript" type="text/javascript">
+      function bytesToSize(bytes) {
+          var sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'EB', 'ZB', 'YB'];
+          if (bytes == 0) return '0 B';
+          var i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+          if (i == -1) return bytes + ' B';
+          if (i == 0) return bytes + ' ' + sizes[i];
+          return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + sizes[i];
+      }
+
+      function secondsToHumanReadable(seconds) {
+          var seconds = parseInt(seconds, 10);
+          var days = Math.floor(seconds / (3600*24));
+          seconds  -= days*3600*24;
+          var hrs   = Math.floor(seconds / 3600);
+          seconds  -= hrs*3600;
+          var mnts = Math.floor(seconds / 60);
+          return days+"D"+String(hrs).padStart(2, '0')+":"+String(mnts).padStart(2, '0');
+      }
+
+      function MetricProcessor() {
+          this.servers = {};
+          this.history = {};
+
+          this.handleExistingServer = function(serverMetric) {
+              this.history[serverMetric.server].cpu_history.push(Number(serverMetric.cpu_usage));
+              this.history[serverMetric.server].mem_history.push(Number(serverMetric.mem_used));
+              this.history[serverMetric.server].iowait_history.push(Number(serverMetric.iowait));
+              this.history[serverMetric.server].read_throughput_history.push(Number(serverMetric.read_throughput));
+              this.history[serverMetric.server].write_throughput_history.push(Number(serverMetric.write_throughput));
+              this.history[serverMetric.server].load_average_history.push(Number(serverMetric.load_average));
+              if (this.history[serverMetric.server].cpu_history.length > 120) {
+                  this.history[serverMetric.server].cpu_history.splice(0, 1);
+                  this.history[serverMetric.server].mem_history.splice(0, 1);
+                  this.history[serverMetric.server].iowait_history.splice(0, 1);
+                  this.history[serverMetric.server].read_throughput_history.splice(0, 1);
+                  this.history[serverMetric.server].write_throughput_history.splice(0, 1);
+                  this.history[serverMetric.server].load_average_history.splice(0, 1);
+              }
+
+              let max_read_throughput = Math.max(...this.history[serverMetric.server].read_throughput_history);
+              let max_write_throughput = Math.max(...this.history[serverMetric.server].write_throughput_history);
+
+              max_disk_throughput = Math.max(
+                  max_read_throughput,
+                  max_write_throughput,
+              );
+
+              this.servers[serverMetric.server]['max_disk_throughput'] = max_disk_throughput;
+          };
+
+          this.handleNewServer = function(serverMetric) {
+              this.history[serverMetric.server] = {
+                  cpu_history: [Number(serverMetric.cpu_usage)],
+                  mem_history: [Number(serverMetric.mem_used)],
+                  iowait_history: [Number(serverMetric.iowait)],
+                  read_throughput_history: [Number(serverMetric.read_throughput)],
+                  write_throughput_history: [Number(serverMetric.write_throughput)],
+                  load_average_history: [Number(serverMetric.load_average)]
+              };
+
+              let serverNames = Object.values(this.servers).sort(function(a, b) {
+                  return a["index"] - b["index"];
+              }).map(function(server)  {
+                  return server.server
+              });
+
+              let metricOutput = "";
+
+              serverNames.forEach(serverName => {
+                  var key = this.servers[serverName].server + " CPU ("
+                      + this.servers[serverName].cpus
+                      +") utilization (";
+                  var sparklineClass = serverName.replace(/[^a-zA-Z0-9]/g,'_');
+                  metricOutput += key.padStart(30, ' ')
+                      + "<span id=\"immediate-cpu-" + sparklineClass + "\">"
+                      + this.servers[serverName].cpu_usage.padStart(5, ' ')
+                      + "</span>"
+                      + "%)<div id=\"sparkline-cpu\" class=\"" + sparklineClass + "\"></div><br />";
+              });
+              $('#cpu-charts').html(metricOutput);
+
+              metricOutput = '';
+              serverNames.forEach(serverName => {
+                  var key = this.servers[serverName].server + " RAM (";
+                  var sparklineClass = serverName.replace(/[^a-zA-Z0-9]/g,'_');
+                  metricOutput += key.padStart(30, ' ')
+                      + "<span id=\"immediate-mem-" + sparklineClass + "\">"
+                      + bytesToSize(this.servers[serverName].mem_used)
+                      + "/"
+                      + bytesToSize(this.servers[serverName].mem_total)
+                      + "</span>"
+                      + ")<div id=\"sparkline-mem\" class=\"" + sparklineClass + "\"></div><br />";
+              });
+              $('#mem-charts').html(metricOutput);
+
+
+              metricOutput = '';
+              serverNames.forEach(serverName => {
+                  var key = /*this.servers[serverName].server +*/ " Disk Read/Write/Max (";
+                  var sparklineClass = serverName.replace(/[^a-zA-Z0-9]/g,'_');
+                  metricOutput += key
+                      + "<span id=\"immediate-disk_stat-" + sparklineClass + "\">"
+                      + bytesToSize(this.servers[serverName].read_throughput)
+                      + " / "
+                      + bytesToSize(this.servers[serverName].write_throughput)
+                      + " / "
+                      + bytesToSize(this.servers[serverName].max_disk_throughput)
+                      + "</span>"
+                      + "/s)<div id=\"sparkline-disk_stat\" class=\"" + sparklineClass + "\"></div><br />";
+              });
+              $('#disk_stat-charts').html(metricOutput);
+
+
+              metricOutput = '';
+              serverNames.forEach(serverName => {
+                  var key = this.servers[serverName].server + " LA 1m (";
+                  var sparklineClass = serverName.replace(/[^a-zA-Z0-9]/g,'_');
+                  metricOutput += key.padStart(30, ' ')
+                      + "<span id=\"immediate-load_average-" + sparklineClass + "\">"
+                      + this.servers[serverName].load_average.padStart(5, ' ')
+                      + "</span>) "
+                      + "Uptime: <span id=\"immediate-uptime-" + sparklineClass + "\">"
+                      + secondsToHumanReadable(this.servers[serverName].uptime_seconds)
+                      + "</span>"
+                      + "<div id=\"sparkline-load_average\" class=\"" + sparklineClass + "\"></div><br />";
+              });
+              $('#load_average-charts').html(metricOutput);
+          };
+
+          this.process = function(serverMetric) {
+              this.servers[serverMetric.server] = serverMetric;
+
+              if (this.history.hasOwnProperty(serverMetric.server)) {
+                  this.handleExistingServer(serverMetric);
+              } else {
+                  this.handleNewServer(serverMetric);
+              }
+          };
+
+          this.updateChart = function(serverMetric) {
+              var serverName = serverMetric.server;
+              var sparklineClass = serverName.replace(/[^a-zA-Z0-9]/g,'_');
+
+              $("#sparkline-cpu." + sparklineClass).sparkline(this.history[serverName].cpu_history, {
+                  type: 'line',
+                  height: '2em',
+                  chartRangeMax: 100,
+                  chartRangeMin: 0,
+                  normalRangeMin: 0,
+                  normalRangeMax: 100,
+                  numberFormatter: function (usage) { return "usage: " + usage + "%"}
+              });
+              $("#immediate-cpu-" + sparklineClass).text(this.servers[serverName].cpu_usage.padStart(5, ' '));
+
+              $("#sparkline-mem." + sparklineClass).sparkline(this.history[serverName].mem_history, {
+                  type: 'line',
+                  height: '2em',
+                  chartRangeMax: this.servers[serverName].mem_total,
+                  chartRangeMin: 0,
+                  normalRangeMin: 0,
+                  normalRangeMax: this.servers[serverName].mem_total,
+                  lineColor: '#ff7f00',
+                  fillColor: '#ffd4aa',
+                  numberFormatter: bytesToSize
+
+              });
+              $("#immediate-mem-" + sparklineClass).text(
+                  bytesToSize(this.servers[serverName].mem_used)
+                  + "/"
+                  + bytesToSize(this.servers[serverName].mem_total)
+              );
+
+              $("#sparkline-cpu." + sparklineClass).sparkline(this.history[serverName].iowait_history, {
+                  type: 'line',
+                  height: '2em',
+                  chartRangeMax: 100,
+                  chartRangeMin: 0,
+
+                  lineColor: '#658c00',
+                  fillColor: '#b7f500',
+                  composite:'true',
+                  numberFormatter: function (iowait) { return "iowait: " + iowait + "%"}
+              });
+              var iowait = this.servers[serverName].iowait;
+              var textColor = '#000000';
+              if (iowait >= 1) {
+                  textColor = '#ff0000';
+              }
+              $("#immediate-iowait-" + sparklineClass).text(iowait.padStart(5, ' ')).css('color', textColor);
+
+
+              var max_disk_throughput = this.servers[serverName].max_disk_throughput;
+              var read_throughput = this.servers[serverName].read_throughput;
+              $("#sparkline-disk_stat." + sparklineClass).sparkline(this.history[serverName].read_throughput_history, {
+                  type: 'line',
+                  height: '2em',
+                  chartRangeMax: max_disk_throughput,
+                  chartRangeMin: 0,
+
+                  lineColor: '#00178c',
+                  fillColor: '#ccd4f5',
+                  numberFormatter: function (read_throughput) { return "Read: " + bytesToSize(read_throughput) + "/s"}
+              });
+              var write_throughput = this.servers[serverName].write_throughput;
+              $("#sparkline-disk_stat." + sparklineClass).sparkline(this.history[serverName].write_throughput_history, {
+                  type: 'line',
+                  height: '2em',
+                  chartRangeMax: max_disk_throughput,
+                  chartRangeMin: 0,
+
+                  lineColor: '#8c0700',
+                  fillColor: '#dd7e76',
+                  composite:'true',
+                  numberFormatter: function (write_throughput) { return "Write: " + bytesToSize(write_throughput) + "/s"}
+              });
+              var textColor = '#000000';
+              $("#immediate-disk_stat-" + sparklineClass).text(bytesToSize(read_throughput) + "/s / " + bytesToSize(write_throughput) + "/s / " + bytesToSize(max_disk_throughput) ).css('color', textColor);
+
+
+              var yellowLevel = this.servers[serverName].cpus +':' + (this.servers[serverName].cpus * 3);
+              var red_level = (this.servers[serverName].cpus * 3) + ':' + (this.servers[serverName].cpus * 5);
+              var black_level = this.servers[serverName].cpus * 5 + ':';
+              var color_map = {};
+              color_map['0:'] = '#658C00';
+              color_map[yellowLevel] = '#FFB00A';
+              color_map[red_level] = '#A60A02';
+              color_map[black_level] = '#000000';
+              $("#sparkline-load_average." + sparklineClass).sparkline(this.history[serverName].load_average_history, {
+                  type: 'bar',
+                  height: '2em',
+                  // chartRangeMax: 100,
+                  chartRangeMin: 0,
+                  normalRangeMin: 0,
+                  normalRangeMax: this.servers[serverName].cpus,
+                  lineColor: '#ff3fea',
+                  fillColor: '#ffc9e9',
+                  barWidth: 3,
+                  barSpacing: 0,
+                  drawNormalOnTop: true,
+                  colorMap: $.range_map(color_map)
+              });
+              $("#immediate-load_average-" + sparklineClass).text(this.servers[serverName].load_average.padStart(5, ' '));
+              var $uptime = $("#immediate-uptime-" + sparklineClass);
+              $uptime.text(secondsToHumanReadable(this.servers[serverName].uptime_seconds));
+          };
+      }
+
+      $(function() {
+          var conn = null;
+          var metricRepository = new MetricProcessor();
+          connect();
+          update_ui();
+
+          function connect() {
+              disconnect();
+              var wsUri = (window.location.protocol=='https:'&&'wss://'||'ws://')+window.location.host + '/ws/';
+              conn = new WebSocket(wsUri);
+              console.log('Connecting...');
+              conn.onopen = function() {
+                  console.log('Connected.');
+                  update_ui();
+              };
+
+              conn.onmessage = function(e) {
+                  try {
+                      var data = JSON.parse(e.data);
+                      if (Array.isArray(data)) {
+                          for (const metric of data) {
+                              metricRepository.process(metric);
+                          }
+                      } else {
+                          metricRepository.process(data);
+                          metricRepository.updateChart(data);
+                      }
+                  } catch (e) {
+                  }
+              };
+              conn.onclose = function() {
+                  console.log('Disconnected.');
+                  conn = null;
+                  console.log('Attempting to reconnect in 10 seconds');
+                  setTimeout(connect, 10000);
+              };
+          }
+          function disconnect() {
+              if (conn != null) {
+                  console.log('Disconnecting...');
+                  conn.close();
+                  conn = null;
+              }
+          }
+          function update_ui() {
+              if (conn == null) {
+                  console.log('disconnected');
+              } else {
+                  console.log('connected (' + conn.protocol + ')');
+              }
+          }
+      });
+
+  </script>
+</head>
+<body>
+<div id="cpu-charts" style="white-space:pre; display: inline-block; width: 400px">
+Loading
+</div>
+<div id="mem-charts" style="white-space:pre; display: inline-block; width: 400px">
+</div>
+<div id="disk_stat-charts" style="white-space:pre; display: inline-block; width: 400px">
+</div>
+<div id="load_average-charts" style="white-space:pre; display: inline-block; width: 400px">
+</div>
+</body>
+</html>
