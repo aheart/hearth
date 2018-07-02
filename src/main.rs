@@ -20,7 +20,7 @@ mod ws;
 
 use actix::*;
 use actix_web::server::HttpServer;
-use actix_web::{fs, http, App, HttpResponse};
+use actix_web::{fs, App};
 use metrics::aggreagtor::*;
 use ws::server::WsServer;
 use ws::session::WsSessionState;
