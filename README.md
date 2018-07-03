@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/aheart/hearth.svg?branch=master)](https://travis-ci.com/aheart/hearth)
+
 # License
 
 This project is licensed under either of
