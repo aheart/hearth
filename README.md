@@ -1,5 +1,5 @@
 [![Build Status](https://travis-ci.com/aheart/hearth.svg?branch=master)](https://travis-ci.com/aheart/hearth)
-[![Coverage Status](https://coveralls.io/repos/github/aheart/hearth/badge.svg?branch=add-test-coverage-report)](https://coveralls.io/github/aheart/hearth?branch=add-test-coverage-report)
+[![Coverage Status](https://coveralls.io/repos/github/aheart/hearth/badge.svg?branch=master)](https://coveralls.io/github/aheart/hearth?branch=master)
 
 # License
 
