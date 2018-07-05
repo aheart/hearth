@@ -19,15 +19,15 @@ pub fn metric_aggregator_factory(
 
 pub struct MetricAggregator {
     ws_server: Addr<Syn, WsServer>,
-    aggregator: MetricProvider,
+    provider: MetricProvider,
     index: usize,
 }
 
 impl MetricAggregator {
-    pub fn new(ws_server: Addr<Syn, WsServer>, aggregator: MetricProvider, index: usize) -> MetricAggregator {
+    pub fn new(ws_server: Addr<Syn, WsServer>, provider: MetricProvider, index: usize) -> MetricAggregator {
         MetricAggregator {
             ws_server,
-            aggregator,
+            provider,
             index,
         }
     }
@@ -35,21 +35,21 @@ impl MetricAggregator {
     fn send_metrics(&self, ctx: &mut actix::Context<Self>) {
         let delay = Duration::new(0, 1_000_000_000);
 
-        ctx.run_later(delay, move |hub, ctx| {
-            let mut metrics = hub.aggregator.get_metrics();
-            metrics.insert("index".into(), hub.index.to_string());
+        ctx.run_later(delay, move |aggregator, ctx| {
+            let mut metrics = aggregator.provider.get_metrics();
+            metrics.insert("index".into(), aggregator.index.to_string());
             let ws_message = Message { id: 0, metrics };
-            hub.ws_server.do_send(ws_message);
-            hub.send_metrics(ctx);
+            aggregator.ws_server.do_send(ws_message);
+            aggregator.send_metrics(ctx);
         });
     }
 
     fn update_uptime(&self, ctx: &mut actix::Context<Self>) {
         let delay = Duration::new(60, 0);
 
-        ctx.run_later(delay, move |hub, ctx| {
-            hub.aggregator.ssh.update_uptime();
-            hub.update_uptime(ctx);
+        ctx.run_later(delay, move |aggreagator, ctx| {
+            aggreagator.provider.ssh.update_uptime();
+            aggreagator.update_uptime(ctx);
         });
     }
 }
@@ -58,7 +58,7 @@ impl Actor for MetricAggregator {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        info!("[{}] Hub started", self.aggregator.ssh.get_hostname());
+        info!("[{}] Aggregator started", self.provider.ssh.get_hostname());
         self.send_metrics(ctx);
         self.update_uptime(ctx);
     }
