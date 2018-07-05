@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::fs::read_to_string;
 use toml;
 
@@ -9,12 +10,18 @@ pub struct ServerConfig {
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
-    pub address: String,
+    pub ip: String,
     pub port: u32,
     pub servers: Option<Vec<ServerConfig>>,
 }
 
-pub fn load_config() -> Config {
-    let config_toml = read_to_string("config.toml").expect("Unable to read config.toml");
-    toml::from_str(&config_toml).expect("config.toml contains invalid TOML")
+impl Config {
+    pub fn address(&self) -> String {
+        format!("{}:{}", self.ip, self.port)
+    }
+}
+
+pub fn load_config() -> Result<Config, Box<Error>> {
+    let config_toml = read_to_string("config.toml")?;
+    Ok(toml::from_str(&config_toml)?)
 }
