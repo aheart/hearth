@@ -16,18 +16,18 @@ impl MetricPlugin for RamMetricPlugin {
     fn process_data(&mut self, raw_data: &str) -> HashMap<String, String> {
         let mut mem_total = 0;
         let mut mem_available = 0;
-        for line in raw_data.split('\n') {
-            let field = match line.split(':').next() {
-                Some("MemTotal") => &mut mem_total,
-                Some("MemAvailable") => &mut mem_available,
-                _ => continue,
-            };
-            if let Some(val_str) = line.rsplit(' ').nth(1) {
-                if let Ok(value) = u64::from_str(val_str) {
-                    *field = value * 1024;
-                }
-            }
-        }
+
+        raw_data.split(|c| c == '\n' || c == ':' || c == ' ')
+            .filter(|c| *c != "" && *c != "kB")
+            .collect::<Vec<&str>>()
+            .chunks(2)
+            .for_each(|metric|{
+                match metric[0] {
+                    "MemTotal" => mem_total = u64::from_str(metric[1]).unwrap_or(0) * 1024,
+                    "MemAvailable" => mem_available = u64::from_str(metric[1]).unwrap_or(0) * 1024,
+                    _ => (),
+                };
+            });
 
         let mut metrics = HashMap::new();
         let mem_used = mem_total - mem_available;
