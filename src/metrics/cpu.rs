@@ -173,3 +173,29 @@ impl Cpu {
         self.last_cpu_times = cpu_times;
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_process_data() {
+        let raw_data_1 = "cpu  350732 1048 57727 6753933 12435 0 859 0 0 0";
+        let raw_data_2 = "cpu  360767 1051 58366 6829700 12458 0 861 0 0 0";
+        assert_parse(raw_data_1, raw_data_2, "12.35", "0.03");
+        assert_parse("", "", "NaN", "NaN");
+    }
+
+    fn assert_parse(raw_data_1: &str, raw_data_2: &str, cpu_usage: &str, iowait: &str) {
+        let mut metric_plugin = CpuMetricPlugin::new();
+        let metrics = metric_plugin.process_data(raw_data_1);
+        let metrics = metric_plugin.process_data(raw_data_2);
+
+        let mut expected_metrics = HashMap::new();
+        expected_metrics.insert("cpu_usage".to_string(), cpu_usage.to_string());
+        expected_metrics.insert("iowait".to_string(), iowait.to_string());
+
+        assert_eq!(metrics, expected_metrics);
+    }
+}
+
