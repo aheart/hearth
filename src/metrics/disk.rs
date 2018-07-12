@@ -17,8 +17,8 @@ impl MetricPlugin for DiskMetricPlugin {
         "cat /sys/block/sda/stat"
     }
 
-    fn process_data(&mut self, raw_data: &str) -> HashMap<String, String> {
-        let disk_stats = DiskStats::from_string(&raw_data);
+    fn process_data(&mut self, raw_data: &str, timestamp: &SystemTime) -> HashMap<String, String> {
+        let disk_stats = DiskStats::from_string(&raw_data, timestamp);
 
         self.disk.push(disk_stats);
 
@@ -105,7 +105,7 @@ impl DiskStats {
         }
     }
 
-    pub fn from_string(raw_data: &str) -> DiskStats {
+    pub fn from_string(raw_data: &str, timestamp: &SystemTime) -> DiskStats {
         let (dist_stats, _): (Vec<&str>, Vec<&str>) =
             raw_data.split(' ').partition(|s| !s.is_empty());
 
@@ -130,7 +130,7 @@ impl DiskStats {
             parse_number!(dist_stats, 8),
             parse_number!(dist_stats, 9),
             parse_number!(dist_stats, 10),
-            SystemTime::now(),
+            timestamp.clone(),
         )
     }
 
@@ -171,13 +171,13 @@ impl Disk {
             .duration_since(self.previous_disk_stats.current_time())
             .unwrap();
         let time_elapsed =
-            (time_elapsed.as_secs() as f64 * 1000.0) + time_elapsed.subsec_millis() as f64;
-        let time_elapsed = time_elapsed / 1000.0;
+            time_elapsed.as_secs() as f64 + time_elapsed.subsec_millis() as f64 / 1000.0 ;
 
         let sectors_read = diff!(
             disk_stats.sectors_read(),
             self.previous_disk_stats.sectors_read()
         ) as f64;
+
         let sectors_written = diff!(
             disk_stats.sectors_written(),
             self.previous_disk_stats.sectors_written()
@@ -195,5 +195,36 @@ impl Disk {
 
     pub fn write_throughput(&self) -> f64 {
         self.write_throughput
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn test_process_data() {
+        let raw_data_1 = "  255586     4852  7024174   115692    31086    50639  3211504   132760        0    48784   248760";
+        let raw_data_2 = "  255600     4852  7027286   115700    31108    50799  3213280   132824        0    48852   248832";
+        let read_throughput = (7027286 - 7024174) * 512;
+        let write_throughput = (3213280 - 3211504) * 512;
+        assert_parse(raw_data_1, raw_data_2, &read_throughput.to_string(), &write_throughput.to_string());
+        assert_parse("", "", "0", "0");
+    }
+
+    fn assert_parse(raw_data_1: &str, raw_data_2: &str, read_throughput: &str, write_throughput: &str) {
+        let mut metric_plugin = DiskMetricPlugin::new();
+        let now = UNIX_EPOCH + Duration::new(1531416624, 0);
+        println!("{:?}", now);
+        let metrics = metric_plugin.process_data(raw_data_1, &now);
+        let now = UNIX_EPOCH + Duration::new(1531416625, 0);
+        let metrics = metric_plugin.process_data(raw_data_2, &now);
+
+        let mut expected_metrics = HashMap::new();
+        expected_metrics.insert("read_throughput".to_string(), read_throughput.to_string());
+        expected_metrics.insert("write_throughput".to_string(), write_throughput.to_string());
+
+        assert_eq!(metrics, expected_metrics);
     }
 }

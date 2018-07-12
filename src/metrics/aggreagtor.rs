@@ -4,6 +4,7 @@ use ssh::SshClient;
 use std::collections::HashMap;
 use std::time::Duration;
 use ws::server::{Message, WsServer};
+use std::time::SystemTime;
 
 pub fn metric_aggregator_factory(
     ws_server: Addr<Syn, WsServer>,
@@ -112,12 +113,13 @@ impl MetricProvider {
     fn process_raw_data(&mut self, raw_data: &str) -> HashMap<String, String> {
         let (results, _): (Vec<&str>, Vec<&str>) =
             raw_data.split("######").partition(|s| !s.is_empty());
+        let now = SystemTime::now();
         let mut metrics = HashMap::new();
         self.metric_providers
             .iter_mut()
             .zip(results.iter())
             .for_each(|(provider, &data)| {
-                metrics.extend(provider.process_data(data));
+                metrics.extend(provider.process_data(data, &now));
             });
         metrics
     }
