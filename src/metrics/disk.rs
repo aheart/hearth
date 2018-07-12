@@ -171,13 +171,13 @@ impl Disk {
             .duration_since(self.previous_disk_stats.current_time())
             .unwrap();
         let time_elapsed =
-            (time_elapsed.as_secs() as f64 * 1000.0) + time_elapsed.subsec_millis() as f64;
-        let time_elapsed = time_elapsed / 1000.0;
+            time_elapsed.as_secs() as f64 + time_elapsed.subsec_millis() as f64 / 1000.0 ;
 
         let sectors_read = diff!(
             disk_stats.sectors_read(),
             self.previous_disk_stats.sectors_read()
         ) as f64;
+
         let sectors_written = diff!(
             disk_stats.sectors_written(),
             self.previous_disk_stats.sectors_written()
