@@ -1,6 +1,7 @@
 use super::MetricPlugin;
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::time::SystemTime;
 
 pub struct RamMetricPlugin {}
 
@@ -13,7 +14,7 @@ impl MetricPlugin for RamMetricPlugin {
         "cat /proc/meminfo"
     }
 
-    fn process_data(&mut self, raw_data: &str) -> HashMap<String, String> {
+    fn process_data(&mut self, raw_data: &str, _: &SystemTime) -> HashMap<String, String> {
         let mut mem_total = 0;
         let mut mem_available = 0;
 
@@ -107,7 +108,8 @@ DirectMap1G:     7340032 kB
 
     fn assert_parse(raw_data: &str, mem_total: &str, mem_used: &str) {
         let mut metric_plugin = RamMetricPlugin::new();
-        let metrics = metric_plugin.process_data(raw_data);
+        let now = SystemTime::now();
+        let metrics = metric_plugin.process_data(raw_data, &now);
 
         let mut expected_metrics = HashMap::new();
         expected_metrics.insert("mem_total".to_string(), mem_total.to_string());

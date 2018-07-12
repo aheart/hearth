@@ -6,6 +6,7 @@ mod ram;
 
 use super::ssh::SshClient;
 use std::collections::HashMap;
+use std::time::SystemTime;
 
 pub trait MetricPlugin: Send + 'static {
     fn new() -> Self
@@ -14,11 +15,11 @@ pub trait MetricPlugin: Send + 'static {
 
     fn get_query(&self) -> &'static str;
 
-    fn process_data(&mut self, raw_data: &str) -> HashMap<String, String>;
+    fn process_data(&mut self, raw_data: &str, timestamp: &SystemTime) -> HashMap<String, String>;
 
-    fn provide(&mut self, client: &mut SshClient) -> HashMap<String, String> {
+    fn provide(&mut self, client: &mut SshClient, timestamp: &SystemTime) -> HashMap<String, String> {
         match client.run(self.get_query()) {
-            Ok(raw_data) => self.process_data(&raw_data),
+            Ok(raw_data) => self.process_data(&raw_data, timestamp),
             Err(_e) => HashMap::new(),
         }
     }

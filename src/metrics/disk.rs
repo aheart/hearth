@@ -17,8 +17,8 @@ impl MetricPlugin for DiskMetricPlugin {
         "cat /sys/block/sda/stat"
     }
 
-    fn process_data(&mut self, raw_data: &str) -> HashMap<String, String> {
-        let disk_stats = DiskStats::from_string(&raw_data);
+    fn process_data(&mut self, raw_data: &str, timestamp: &SystemTime) -> HashMap<String, String> {
+        let disk_stats = DiskStats::from_string(&raw_data, timestamp);
 
         self.disk.push(disk_stats);
 
@@ -105,7 +105,7 @@ impl DiskStats {
         }
     }
 
-    pub fn from_string(raw_data: &str) -> DiskStats {
+    pub fn from_string(raw_data: &str, timestamp: &SystemTime) -> DiskStats {
         let (dist_stats, _): (Vec<&str>, Vec<&str>) =
             raw_data.split(' ').partition(|s| !s.is_empty());
 
@@ -130,7 +130,7 @@ impl DiskStats {
             parse_number!(dist_stats, 8),
             parse_number!(dist_stats, 9),
             parse_number!(dist_stats, 10),
-            SystemTime::now(),
+            timestamp.clone(),
         )
     }
 

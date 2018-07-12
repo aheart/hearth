@@ -1,6 +1,7 @@
 use super::MetricPlugin;
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::time::SystemTime;
 
 pub struct CpuMetricPlugin {
     cpu: Cpu,
@@ -16,7 +17,7 @@ impl MetricPlugin for CpuMetricPlugin {
         "grep 'cpu '  /proc/stat"
     }
 
-    fn process_data(&mut self, raw_data: &str) -> HashMap<String, String> {
+    fn process_data(&mut self, raw_data: &str, _: &SystemTime) -> HashMap<String, String> {
         let cpu_times = CpuTimes::from_string(&raw_data);
         self.cpu.push(cpu_times);
 
@@ -188,8 +189,9 @@ mod test {
 
     fn assert_parse(raw_data_1: &str, raw_data_2: &str, cpu_usage: &str, iowait: &str) {
         let mut metric_plugin = CpuMetricPlugin::new();
-        let metrics = metric_plugin.process_data(raw_data_1);
-        let metrics = metric_plugin.process_data(raw_data_2);
+        let now = SystemTime::now();
+        let metrics = metric_plugin.process_data(raw_data_1, &now);
+        let metrics = metric_plugin.process_data(raw_data_2, &now);
 
         let mut expected_metrics = HashMap::new();
         expected_metrics.insert("cpu_usage".to_string(), cpu_usage.to_string());

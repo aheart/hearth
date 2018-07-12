@@ -1,6 +1,7 @@
 use super::MetricPlugin;
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::time::SystemTime;
 
 pub struct LoadAverageMetricPlugin {}
 
@@ -13,7 +14,7 @@ impl MetricPlugin for LoadAverageMetricPlugin {
         "cat /proc/loadavg"
     }
 
-    fn process_data(&mut self, raw_data: &str) -> HashMap<String, String> {
+    fn process_data(&mut self, raw_data: &str, _: &SystemTime) -> HashMap<String, String> {
         let (parts, _): (Vec<&str>, Vec<&str>) = raw_data.split(' ').partition(|s| !s.is_empty());
         let load_average_1m = parts.get(0).unwrap_or(&"0"); // and_then?
         let load_average_1m = f64::from_str(load_average_1m).unwrap_or(0.);
@@ -44,7 +45,8 @@ mod test {
 
     fn assert_parse(raw_data: &str, load_average: &str) {
         let mut metric_plugin = LoadAverageMetricPlugin::new();
-        let metrics = metric_plugin.process_data(raw_data);
+        let now = SystemTime::now();
+        let metrics = metric_plugin.process_data(raw_data, &now);
 
         let mut expected_metrics = HashMap::new();
         expected_metrics.insert("load_average".to_string(), load_average.to_string());
