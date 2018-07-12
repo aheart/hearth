@@ -197,3 +197,34 @@ impl Disk {
         self.write_throughput
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn test_process_data() {
+        let raw_data_1 = "  255586     4852  7024174   115692    31086    50639  3211504   132760        0    48784   248760";
+        let raw_data_2 = "  255600     4852  7027286   115700    31108    50799  3213280   132824        0    48852   248832";
+        let read_throughput = (7027286 - 7024174) * 512;
+        let write_throughput = (3213280 - 3211504) * 512;
+        assert_parse(raw_data_1, raw_data_2, &read_throughput.to_string(), &write_throughput.to_string());
+        assert_parse("", "", "0", "0");
+    }
+
+    fn assert_parse(raw_data_1: &str, raw_data_2: &str, read_throughput: &str, write_throughput: &str) {
+        let mut metric_plugin = DiskMetricPlugin::new();
+        let now = UNIX_EPOCH + Duration::new(1531416624, 0);
+        println!("{:?}", now);
+        let metrics = metric_plugin.process_data(raw_data_1, &now);
+        let now = UNIX_EPOCH + Duration::new(1531416625, 0);
+        let metrics = metric_plugin.process_data(raw_data_2, &now);
+
+        let mut expected_metrics = HashMap::new();
+        expected_metrics.insert("read_throughput".to_string(), read_throughput.to_string());
+        expected_metrics.insert("write_throughput".to_string(), write_throughput.to_string());
+
+        assert_eq!(metrics, expected_metrics);
+    }
+}
