@@ -11,7 +11,7 @@ use config::Config;
 pub fn run(config: Config) {
     ::env_logger::init();
     let sys = actix::System::new("hearth");
-    let ws_server: Addr<Syn, _> = Arbiter::start(|_| WsServer::default());
+    let ws_server = Arbiter::start(|_| WsServer::default());
 
     for (index, server_config) in config.servers.as_ref().unwrap().iter().enumerate() {
         let metric_hub = metric_aggregator_factory(
@@ -20,7 +20,7 @@ pub fn run(config: Config) {
             server_config.hostname.clone(),
             index,
         );
-        let _: Addr<Syn, _> = Arbiter::start(|_| metric_hub);
+        let _ = Arbiter::start(|_| metric_hub);
     }
 
     HttpServer::new(move || {
@@ -30,7 +30,12 @@ pub fn run(config: Config) {
 
         App::with_state(state)
             .resource("/ws/", |r| r.route().f(ws_route))
-            .handler("/", fs::StaticFiles::new("static/").index_file("index.html"))
+            .handler(
+                "/",
+                fs::StaticFiles::new("static/")
+                    .expect("Unable to initialize static resources")
+                    .index_file("index.html")
+            )
     }).bind(config.address())
         .expect("Can not start server on given IP/Port")
         .start();
