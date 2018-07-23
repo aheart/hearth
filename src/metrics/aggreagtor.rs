@@ -7,7 +7,7 @@ use ws::server::{Message, WsServer};
 use std::time::SystemTime;
 
 pub fn metric_aggregator_factory(
-    ws_server: Addr<Syn, WsServer>,
+    ws_server: Addr<WsServer>,
     username: String,
     hostname: String,
     index: usize,
@@ -19,13 +19,13 @@ pub fn metric_aggregator_factory(
 }
 
 pub struct MetricAggregator {
-    ws_server: Addr<Syn, WsServer>,
+    ws_server: Addr<WsServer>,
     provider: MetricProvider,
     index: usize,
 }
 
 impl MetricAggregator {
-    pub fn new(ws_server: Addr<Syn, WsServer>, provider: MetricProvider, index: usize) -> MetricAggregator {
+    pub fn new(ws_server: Addr<WsServer>, provider: MetricProvider, index: usize) -> MetricAggregator {
         MetricAggregator {
             ws_server,
             provider,

@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 #[derive(Message)]
 #[rtype(usize)]
 pub struct Connect {
-    pub addr: Recipient<Syn, super::session::SessionMessage>,
+    pub addr: Recipient<super::session::SessionMessage>,
 }
 
 #[derive(Message)]
@@ -23,7 +23,7 @@ pub struct Message {
 }
 
 pub struct WsServer {
-    sessions: HashMap<usize, Recipient<Syn, super::session::SessionMessage>>,
+    sessions: HashMap<usize, Recipient<super::session::SessionMessage>>,
     clients: HashSet<usize>,
     rng: RefCell<ThreadRng>,
     metric_buffer: Vec<HashMap<String, String>>,

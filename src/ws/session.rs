@@ -8,7 +8,7 @@ use std::time::Instant;
 pub struct SessionMessage(pub String);
 
 pub struct WsSessionState {
-    pub addr: Addr<Syn, WsServer>,
+    pub addr: Addr<WsServer>,
 }
 
 pub struct WsSession {
@@ -20,7 +20,7 @@ impl Actor for WsSession {
     type Context = ws::WebsocketContext<Self, WsSessionState>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        let addr: Addr<Syn, _> = ctx.address();
+        let addr = ctx.address();
         ctx.state()
             .addr
             .send(Connect {
