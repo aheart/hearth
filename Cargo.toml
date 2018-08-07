@@ -15,3 +15,7 @@ actix = "0.7"
 actix-web = "0.7"
 ssh2 = "0.3"
 libssh2-sys = "=0.2.7"
+
+[profile.release]
+lto = true
+opt-level = 3
