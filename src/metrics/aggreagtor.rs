@@ -79,14 +79,13 @@ impl MetricProvider {
     }
 
     fn get_metrics(&mut self) -> HashMap<String, String> {
+        let mut accum = self.batch_fetch();
         let server = self.ssh.get_hostname().to_string();
         let cpus = self.ssh.get_cpus().to_string();
         let uptime_seconds = self.ssh.get_uptime().to_string();
-        let mut accum = HashMap::new();
         accum.insert("server".into(), server.to_string());
         accum.insert("cpus".into(), cpus.to_string());
         accum.insert("uptime_seconds".into(), uptime_seconds.to_string());
-        accum.extend(self.batch_fetch());
         accum
     }
 
