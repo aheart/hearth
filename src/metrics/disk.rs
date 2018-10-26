@@ -217,7 +217,7 @@ mod test {
         let mut metric_plugin = DiskMetricPlugin::new();
         let now = UNIX_EPOCH + Duration::new(1531416624, 0);
         println!("{:?}", now);
-        let metrics = metric_plugin.process_data(raw_data_1, &now);
+        metric_plugin.process_data(raw_data_1, &now);
         let now = UNIX_EPOCH + Duration::new(1531416625, 0);
         let metrics = metric_plugin.process_data(raw_data_2, &now);
 

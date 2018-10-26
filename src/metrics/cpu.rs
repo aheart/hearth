@@ -190,7 +190,7 @@ mod test {
     fn assert_parse(raw_data_1: &str, raw_data_2: &str, cpu_usage: &str, iowait: &str) {
         let mut metric_plugin = CpuMetricPlugin::new();
         let now = SystemTime::now();
-        let metrics = metric_plugin.process_data(raw_data_1, &now);
+        metric_plugin.process_data(raw_data_1, &now);
         let metrics = metric_plugin.process_data(raw_data_2, &now);
 
         let mut expected_metrics = HashMap::new();
