@@ -7,9 +7,14 @@ use ws::ws_route;
 use ws::server::WsServer;
 use ws::session::WsSessionState;
 use config::Config;
+use env_logger;
 
 pub fn run(config: Config) {
-    ::env_logger::init();
+    let env = env_logger::Env::default()
+        .filter_or(env_logger::DEFAULT_FILTER_ENV, "info");
+
+    env_logger::Builder::from_env(env).init();
+
     let sys = actix::System::new("hearth");
     let ws_server = Arbiter::start(|_| WsServer::default());
 

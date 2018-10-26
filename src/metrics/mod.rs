@@ -4,29 +4,29 @@ pub mod aggreagtor;
 mod la;
 mod ram;
 
-use super::ssh::SshClient;
 use std::collections::HashMap;
 use std::time::SystemTime;
 
+/// Interface for Metric Plugins that possess the knowledge of retrieving raw metric data and
+/// processing this raw data into structured Metric key value pairs.
 pub trait MetricPlugin: Send + 'static {
-    fn new() -> Self
-    where
-        Self: Sized;
 
+    /// Metric Plugin Constructor
+    fn new() -> Self
+        where
+            Self: Sized;
+
+    /// Returns a command that should be run in order to retrieve raw data
     fn get_query(&self) -> &'static str;
 
+    /// Transforms raw data into a HashMap of metrics
     fn process_data(&mut self, raw_data: &str, timestamp: &SystemTime) -> HashMap<String, String>;
 
-    fn provide(&mut self, client: &mut SshClient, timestamp: &SystemTime) -> HashMap<String, String> {
-        match client.run(self.get_query()) {
-            Ok(raw_data) => self.process_data(&raw_data, timestamp),
-            Err(_e) => HashMap::new(),
-        }
-    }
-
+    /// Returns a HashMap with keys and empty values
     fn empty_metrics(&self) -> HashMap<String, String>;
 }
 
+/// Creates all possible metric plugins and returns them as a HashMap
 fn metric_plugin_factory() -> Vec<Box<dyn MetricPlugin>> {
     let metric_plugins: Vec<Box<dyn MetricPlugin>> = vec![
         Box::new(cpu::CpuMetricPlugin::new()),
