@@ -188,12 +188,6 @@
                   composite:'true',
                   numberFormatter: function (iowait) { return "iowait: " + iowait + "%"}
               });
-              var iowait = this.servers[serverName].iowait;
-              var textColor = '#000000';
-              if (iowait >= 1) {
-                  textColor = '#ff0000';
-              }
-              $("#immediate-iowait-" + sparklineClass).text(iowait.padStart(5, ' ')).css('color', textColor);
 
 
               var max_disk_throughput = this.servers[serverName].max_disk_throughput;
@@ -220,8 +214,7 @@
                   composite:'true',
                   numberFormatter: function (write_throughput) { return "Write: " + bytesToSize(write_throughput) + "/s"}
               });
-              var textColor = '#000000';
-              $("#immediate-disk_stat-" + sparklineClass).text(bytesToSize(read_throughput) + "/s / " + bytesToSize(write_throughput) + "/s / " + bytesToSize(max_disk_throughput) ).css('color', textColor);
+              $("#immediate-disk_stat-" + sparklineClass).text(bytesToSize(read_throughput) + "/s / " + bytesToSize(write_throughput) + "/s / " + bytesToSize(max_disk_throughput) );
 
 
               var yellowLevel = this.servers[serverName].cpus +':' + (this.servers[serverName].cpus * 3);
@@ -249,6 +242,24 @@
               $("#immediate-load_average-" + sparklineClass).text(this.servers[serverName].load_average.padStart(5, ' '));
               var $uptime = $("#immediate-uptime-" + sparklineClass);
               $uptime.text(secondsToHumanReadable(this.servers[serverName].uptime_seconds));
+
+              //Update Totals:
+              let totalCpu = 0;
+              let totalCpuUsage = 0;
+              let totalRam = 0;
+              let totalUsedRam = 0;
+              for (var server in this.servers) {
+                  totalCpu += Number(this.servers[server].cpus);
+                  totalRam += Number(this.servers[server].mem_total);
+                  totalUsedRam += Number(this.servers[server].mem_used);
+                  totalCpuUsage += Number(this.servers[server].cpu_usage);
+              }
+
+              totalCpuUsage = totalCpuUsage / Object.keys(this.servers).length;
+              totalCpuUsage = (Math.round(totalCpuUsage) + "%").padStart(3, '_');
+              $("#total-cpus").html(totalCpu);
+              $("#total-ram").html(bytesToSize(totalUsedRam) + "/" + bytesToSize(totalRam));
+              $("#total-cpu-usage").html(totalCpuUsage);
           };
       }
 
@@ -307,9 +318,15 @@
 
   </script>
 </head>
-<body>
+<body style="color: #444444; font-size: 15px">
+<div style="color: #000000; margin-bottom: 1em">
+  Total: CPUs: <span id="total-cpus"></span>
+  CPU utilization: <span id="total-cpu-usage"></span>
+  RAM: <span id="total-ram"></span><br>
+</div>
+
 <div id="cpu-charts" style="white-space:pre; display: inline-block; width: 400px">
-Loading
+  Loading
 </div>
 <div id="mem-charts" style="white-space:pre; display: inline-block; width: 400px">
 </div>
