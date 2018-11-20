@@ -8,12 +8,12 @@ addons:
       - libssl-dev
 
 rust:
-  - stable
+  - nightly
 
 script:
   - cargo build
   - cargo test
 
 after_success: |
-  `RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin`
+  RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin
   cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
