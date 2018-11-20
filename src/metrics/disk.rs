@@ -5,16 +5,20 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct DiskMetricPlugin {
     disk: Disk,
+    command: String,
+}
+
+impl DiskMetricPlugin {
+    pub fn new(device: &str) -> Self {
+        let disk = Disk::default();
+        let command = format!("cat /sys/block/{}/stat", device);
+        Self { disk, command }
+    }
 }
 
 impl MetricPlugin for DiskMetricPlugin {
-    fn new() -> Self {
-        let disk = Disk::default();
-        Self { disk }
-    }
-
-    fn get_query(&self) -> &'static str {
-        "cat /sys/block/sda/stat"
+    fn get_query(&self) -> &str {
+        &self.command
     }
 
     fn process_data(&mut self, raw_data: &str, timestamp: &SystemTime) -> HashMap<String, String> {
@@ -214,7 +218,7 @@ mod test {
     }
 
     fn assert_parse(raw_data_1: &str, raw_data_2: &str, read_throughput: &str, write_throughput: &str) {
-        let mut metric_plugin = DiskMetricPlugin::new();
+        let mut metric_plugin = DiskMetricPlugin::new("sda");
         let now = UNIX_EPOCH + Duration::new(1531416624, 0);
         println!("{:?}", now);
         metric_plugin.process_data(raw_data_1, &now);

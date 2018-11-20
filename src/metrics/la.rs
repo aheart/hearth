@@ -5,10 +5,13 @@ use std::time::SystemTime;
 
 pub struct LoadAverageMetricPlugin {}
 
-impl MetricPlugin for LoadAverageMetricPlugin {
-    fn new() -> Self {
+impl LoadAverageMetricPlugin {
+    pub fn new() -> Self {
         LoadAverageMetricPlugin {}
     }
+}
+
+impl MetricPlugin for LoadAverageMetricPlugin {
 
     fn get_query(&self) -> &'static str {
         "cat /proc/loadavg"

@@ -34,6 +34,8 @@
               this.history[serverMetric.server].iowait_history.push(Number(serverMetric.iowait));
               this.history[serverMetric.server].read_throughput_history.push(Number(serverMetric.read_throughput));
               this.history[serverMetric.server].write_throughput_history.push(Number(serverMetric.write_throughput));
+              this.history[serverMetric.server].down_bandwidth_history.push(Number(serverMetric.down_bandwidth));
+              this.history[serverMetric.server].up_bandwidth_history.push(Number(serverMetric.up_bandwidth));
               this.history[serverMetric.server].load_average_history.push(Number(serverMetric.load_average));
               if (this.history[serverMetric.server].cpu_history.length > 120) {
                   this.history[serverMetric.server].cpu_history.splice(0, 1);
@@ -41,6 +43,8 @@
                   this.history[serverMetric.server].iowait_history.splice(0, 1);
                   this.history[serverMetric.server].read_throughput_history.splice(0, 1);
                   this.history[serverMetric.server].write_throughput_history.splice(0, 1);
+                  this.history[serverMetric.server].down_bandwidth_history.splice(0, 1);
+                  this.history[serverMetric.server].up_bandwidth_history.splice(0, 1);
                   this.history[serverMetric.server].load_average_history.splice(0, 1);
               }
 
@@ -53,6 +57,16 @@
               );
 
               this.servers[serverMetric.server]['max_disk_throughput'] = max_disk_throughput;
+
+              let max_down_bandwidth = Math.max(...this.history[serverMetric.server].down_bandwidth_history);
+              let max_up_bandwidth = Math.max(...this.history[serverMetric.server].up_bandwidth_history);
+
+              max_net_bandwidth = Math.max(
+                  max_down_bandwidth,
+                  max_up_bandwidth,
+              );
+
+              this.servers[serverMetric.server]['max_net_bandwidth'] = max_net_bandwidth;
           };
 
           this.handleNewServer = function(serverMetric) {
@@ -62,6 +76,8 @@
                   iowait_history: [Number(serverMetric.iowait)],
                   read_throughput_history: [Number(serverMetric.read_throughput)],
                   write_throughput_history: [Number(serverMetric.write_throughput)],
+                  down_bandwidth_history: [Number(serverMetric.down_bandwidth)],
+                  up_bandwidth_history: [Number(serverMetric.up_bandwidth)],
                   load_average_history: [Number(serverMetric.load_average)]
               };
 
@@ -116,6 +132,22 @@
                       + "/s)<div id=\"sparkline-disk_stat\" class=\"" + sparklineClass + "\"></div><br />";
               });
               $('#disk_stat-charts').html(metricOutput);
+
+              metricOutput = '';
+              serverNames.forEach(serverName => {
+                  var key = /*this.servers[serverName].server +*/ " NET Down/Up/Max (";
+                  var sparklineClass = serverName.replace(/[^a-zA-Z0-9]/g,'_');
+                  metricOutput += key
+                      + "<span id=\"immediate-net_stat-" + sparklineClass + "\">"
+                      + bytesToSize(this.servers[serverName].down_bandwidth)
+                      + " / "
+                      + bytesToSize(this.servers[serverName].up_bandwidth)
+                      + " / "
+                      + bytesToSize(this.servers[serverName].max_net_bandwidth)
+                      + "</span>"
+                      + "/s)<div id=\"sparkline-net_stat\" class=\"" + sparklineClass + "\"></div><br />";
+              });
+              $('#net_stat-charts').html(metricOutput);
 
 
               metricOutput = '';
@@ -217,6 +249,33 @@
               $("#immediate-disk_stat-" + sparklineClass).text(bytesToSize(read_throughput) + "/s / " + bytesToSize(write_throughput) + "/s / " + bytesToSize(max_disk_throughput) );
 
 
+              var max_net_bandwidth = this.servers[serverName].max_net_bandwidth;
+              var down_bandwidth = this.servers[serverName].down_bandwidth;
+              $("#sparkline-net_stat." + sparklineClass).sparkline(this.history[serverName].down_bandwidth_history, {
+                  type: 'line',
+                  height: '2em',
+                  chartRangeMax: max_net_bandwidth,
+                  chartRangeMin: 0,
+
+                  lineColor: '#8c5e00',
+                  fillColor: '#f5a900',
+                  numberFormatter: function (down_bandwidth) { return "Download: " + bytesToSize(down_bandwidth) + "/s"}
+              });
+              var up_bandwidth = this.servers[serverName].up_bandwidth;
+              $("#sparkline-net_stat." + sparklineClass).sparkline(this.history[serverName].up_bandwidth_history, {
+                  type: 'line',
+                  height: '2em',
+                  chartRangeMax: max_net_bandwidth,
+                  chartRangeMin: 0,
+
+                  lineColor: '#005e8c',
+                  fillColor: '#0081dd',
+                  composite:'true',
+                  numberFormatter: function (up_bandwidth) { return "Upload: " + bytesToSize(up_bandwidth) + "/s"}
+              });
+              $("#immediate-net_stat-" + sparklineClass).text(bytesToSize(down_bandwidth) + "/s / " + bytesToSize(up_bandwidth) + "/s / " + bytesToSize(max_net_bandwidth) );
+
+
               var yellowLevel = this.servers[serverName].cpus +':' + (this.servers[serverName].cpus * 3);
               var red_level = (this.servers[serverName].cpus * 3) + ':' + (this.servers[serverName].cpus * 5);
               var black_level = this.servers[serverName].cpus * 5 + ':';
@@ -248,11 +307,15 @@
               let totalCpuUsage = 0;
               let totalRam = 0;
               let totalUsedRam = 0;
+              let totalNetRx = 0;
+              let totalNetTx = 0;
               for (var server in this.servers) {
                   totalCpu += Number(this.servers[server].cpus);
                   totalRam += Number(this.servers[server].mem_total);
                   totalUsedRam += Number(this.servers[server].mem_used);
                   totalCpuUsage += Number(this.servers[server].cpu_usage);
+                  totalNetRx += Number(this.servers[server].down_bandwidth);
+                  totalNetTx += Number(this.servers[server].up_bandwidth);
               }
 
               totalCpuUsage = totalCpuUsage / Object.keys(this.servers).length;
@@ -260,6 +323,12 @@
               $("#total-cpus").html(totalCpu);
               $("#total-ram").html(bytesToSize(totalUsedRam) + "/" + bytesToSize(totalRam));
               $("#total-cpu-usage").html(totalCpuUsage);
+              $("#total-net-rx").html(
+                  (bytesToSize(totalNetRx) + "/s").padStart(10, '_')
+              );
+              $("#total-net-tx").html(
+                  (bytesToSize(totalNetTx) + "/s").padStart(10, '_')
+              );
           };
       }
 
@@ -318,21 +387,25 @@
 
   </script>
 </head>
-<body style="color: #444444; font-size: 15px">
+<body style="color: #444444; font-size: 12px; font-family:sans-serif">
 <div style="color: #000000; margin-bottom: 1em">
-  Total: CPUs: <span id="total-cpus"></span>
-  CPU utilization: <span id="total-cpu-usage"></span>
-  RAM: <span id="total-ram"></span><br>
+  Total: CPUs: <span id="total-cpus"></span> |
+  CPU utilization: <span id="total-cpu-usage"></span> |
+  RAM: <span id="total-ram"></span> |
+  Network: RX:<span id="total-net-rx"></span> TX: <span id="total-net-tx"></span>
+  <br>
 </div>
 
-<div id="cpu-charts" style="white-space:pre; display: inline-block; width: 400px">
+<div id="cpu-charts" style="white-space:pre; display: inline-block; width: 360px">
   Loading
 </div>
-<div id="mem-charts" style="white-space:pre; display: inline-block; width: 400px">
+<div id="mem-charts" style="white-space:pre; display: inline-block; width: 360px">
 </div>
-<div id="disk_stat-charts" style="white-space:pre; display: inline-block; width: 400px">
+<div id="disk_stat-charts" style="white-space:pre; display: inline-block; width: 360px">
 </div>
-<div id="load_average-charts" style="white-space:pre; display: inline-block; width: 400px">
+<div id="net_stat-charts" style="white-space:pre; display: inline-block; width: 360px">
+</div>
+<div id="load_average-charts" style="white-space:pre; display: inline-block; width: 360px">
 </div>
 </body>
 </html>

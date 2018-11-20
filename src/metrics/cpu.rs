@@ -7,11 +7,14 @@ pub struct CpuMetricPlugin {
     cpu: Cpu,
 }
 
-impl MetricPlugin for CpuMetricPlugin {
-    fn new() -> Self {
+impl CpuMetricPlugin {
+    pub fn new() -> Self {
         let processor = Cpu::default();
         Self { cpu: processor }
     }
+}
+
+impl MetricPlugin for CpuMetricPlugin {
 
     fn get_query(&self) -> &'static str {
         "grep 'cpu '  /proc/stat"
