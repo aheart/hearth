@@ -6,6 +6,8 @@ use toml;
 pub struct ServerConfig {
     pub hostname: String,
     pub username: String,
+    pub disk: String,
+    pub network_interface: String,
 }
 
 #[derive(Debug, Deserialize)]

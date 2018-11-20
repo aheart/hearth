@@ -4,7 +4,11 @@ port = 80
 [[servers]]
 username = "user"
 hostname = "dev-server-1.hostname.tld"
+disk = "sda"
+network_interface = "eth0"
 
 [[servers]]
 username = "user"
 hostname = "dev-server-2.hostname.tld"
+disk = "sda"
+network_interface = "eth0"

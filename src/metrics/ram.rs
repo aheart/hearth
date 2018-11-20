@@ -5,10 +5,13 @@ use std::time::SystemTime;
 
 pub struct RamMetricPlugin {}
 
-impl MetricPlugin for RamMetricPlugin {
-    fn new() -> Self {
+impl RamMetricPlugin {
+    pub fn new() -> Self {
         Self {}
     }
+}
+
+impl MetricPlugin for RamMetricPlugin {
 
     fn get_query(&self) -> &'static str {
         "cat /proc/meminfo"

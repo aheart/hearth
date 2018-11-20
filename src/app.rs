@@ -21,8 +21,7 @@ pub fn run(config: Config) {
     for (index, server_config) in config.servers.as_ref().unwrap().iter().enumerate() {
         let metric_hub = metric_aggregator_factory(
             ws_server.clone(),
-            server_config.username.clone(),
-            server_config.hostname.clone(),
+            server_config,
             index,
         );
         let _ = Arbiter::start(|_| metric_hub);

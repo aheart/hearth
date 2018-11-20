@@ -5,15 +5,23 @@ use std::collections::HashMap;
 use std::time::Duration;
 use ws::server::{Message, WsServer};
 use std::time::SystemTime;
+use super::super::config::ServerConfig;
 
 pub fn metric_aggregator_factory(
     ws_server: Addr<WsServer>,
-    username: String,
-    hostname: String,
+    server_config: &ServerConfig,
     index: usize,
 ) -> MetricAggregator {
-    let ssh = SshClient::new(username, hostname, 22);
-    let aggregator = MetricProvider::new(ssh, super::metric_plugin_factory());
+    let ssh = SshClient::new(
+        server_config.username.clone(),
+        server_config.hostname.clone(),
+        22
+    );
+    let plugins = super::metric_plugin_factory(
+        &server_config.disk,
+        &server_config.network_interface
+    );
+    let aggregator = MetricProvider::new(ssh, plugins);
 
     MetricAggregator::new(ws_server, aggregator, index)
 }
