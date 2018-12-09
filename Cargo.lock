@@ -497,7 +497,7 @@ dependencies = [
 
 [[package]]
 name = "hearth"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "actix 0.7.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "actix-web 0.7.14 (registry+https://github.com/rust-lang/crates.io-index)",
