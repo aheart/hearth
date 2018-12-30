@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::fs::read_to_string;
 use toml;
+use serde_derive::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct ServerConfig {
@@ -23,7 +24,7 @@ impl Config {
     }
 }
 
-pub fn load_config() -> Result<Config, Box<Error>> {
+pub fn load_config() -> Result<Config, Box<dyn Error>> {
     let config_toml = read_to_string("config.toml")?;
     Ok(toml::from_str(&config_toml)?)
 }

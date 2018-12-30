@@ -1,9 +1,9 @@
 use actix::prelude::*;
-use actix::*;
 use rand::{self, Rng, ThreadRng};
 use serde_json;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use log::info;
 
 #[derive(Message)]
 #[rtype(usize)]

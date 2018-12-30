@@ -1,8 +1,8 @@
 use super::server::{Connect, Disconnect, WsServer};
 use actix::prelude::*;
-use actix::*;
 use actix_web::ws;
 use std::time::Instant;
+use log::warn;
 
 #[derive(Message)]
 pub struct SessionMessage(pub String);

@@ -2,6 +2,7 @@ use ssh2::{Channel, Session};
 use std::io::prelude::*;
 use std::net::TcpStream;
 use std::str::FromStr;
+use log::{info, error, debug};
 
 pub struct SshClient {
     username: String,
@@ -39,7 +40,7 @@ impl SshClient {
     }
 
     /// Run command on server and if it fails invalidate the session
-    pub fn run(&mut self, command: &str) -> Result<String, Box<::std::error::Error>> {
+    pub fn run(&mut self, command: &str) -> Result<String, Box<dyn (::std::error::Error)>> {
         self.exec(command).map_err(move |error| {
             self.session = None;
             error
@@ -55,7 +56,7 @@ impl SshClient {
         self.uptime_seconds = uptime_seconds as u64;
     }
 
-    fn exec(&mut self, command: &str) -> Result<String, Box<::std::error::Error>> {
+    fn exec(&mut self, command: &str) -> Result<String, Box<dyn (::std::error::Error)>> {
         let mut channel = self.channel()?;
         channel.exec(command)?;
 
@@ -123,7 +124,7 @@ impl SshClient {
     }
 
     /// Get channel to run command
-    fn channel(&mut self) -> Result<Channel, Box<::std::error::Error>> {
+    fn channel(&mut self) -> Result<Channel<'_>, Box<dyn (::std::error::Error)>> {
         match self.session {
             Some(_) => {}
             None => self.connect(),
