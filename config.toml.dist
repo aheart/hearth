@@ -1,6 +1,9 @@
+# This section configures the Web UI
 ip = "127.0.0.1"
 port = 80
 
+
+# This section configures the servers that should be monitored
 [[servers]]
 username = "user"
 hostname = "dev-server-1.hostname.tld"
