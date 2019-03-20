@@ -118,7 +118,7 @@ impl SshClient {
         info!("[{}] Connection established", self.hostname);
 
         let cpus = self.run("nproc").unwrap_or_else(|_| "0".to_string());
-        self.cpus = usize::from_str(cpus.trim_right()).unwrap_or(0);
+        self.cpus = usize::from_str(cpus.trim_end()).unwrap_or(0);
 
         self.update_uptime();
     }
