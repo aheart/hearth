@@ -4,6 +4,7 @@ use serde_json;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use log::info;
+use crate::metrics::Metrics;
 
 #[derive(Message)]
 #[rtype(usize)]
@@ -26,7 +27,7 @@ pub struct WsServer {
     sessions: HashMap<usize, Recipient<super::session::SessionMessage>>,
     clients: HashSet<usize>,
     rng: RefCell<ThreadRng>,
-    metric_buffer: Vec<HashMap<String, String>>,
+    metric_buffer: HashMap<String, Vec<Metrics>>,
 }
 
 impl Default for WsServer {
@@ -35,7 +36,7 @@ impl Default for WsServer {
             sessions: HashMap::new(),
             clients: HashSet::new(),
             rng: RefCell::new(rand::thread_rng()),
-            metric_buffer: vec![],
+            metric_buffer: HashMap::new(),
         }
     }
 }
@@ -68,7 +69,11 @@ impl Handler<Connect> for WsServer {
         self.clients.insert(id);
 
         let addr = msg.addr;
-        let msg = serde_json::to_string(&self.metric_buffer).unwrap();
+        let mut metrics = vec![];
+        for (_, server) in &self.metric_buffer {
+            metrics.append(&mut server.clone());
+        }
+        let msg = serde_json::to_string(&metrics).unwrap();
         addr.send(super::session::SessionMessage(msg.clone()))
             .into_actor(self)
             .then(|_res, _act, _ctx| fut::ok(()))
@@ -93,10 +98,18 @@ impl Handler<Message> for WsServer {
     type Result = ();
 
     fn handle(&mut self, msg: Message, _: &mut Context<Self>) {
-        self.metric_buffer.push(msg.metrics.clone());
-        if self.metric_buffer.len() > 1320 {
-            self.metric_buffer.drain(0..1);
+
+        let hostname = msg.metrics.get("server").unwrap();
+
+        if let Some(server_history) = self.metric_buffer.get_mut(hostname) {
+            server_history.push(msg.metrics.clone());
+            if server_history.len() > 120 {
+                server_history.drain(0..1);
+            }
+        } else {
+            self.metric_buffer.insert(hostname.to_string(), vec![msg.metrics.clone()]);
         }
+
         let message = serde_json::to_string(&msg.metrics).unwrap();
         self.send_message(message.as_str(), msg.id);
     }
