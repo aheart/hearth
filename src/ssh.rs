@@ -1,6 +1,6 @@
 use ssh2::{Channel, Session};
 use std::io::prelude::*;
-use std::net::TcpStream;
+use std::net::{TcpStream, ToSocketAddrs};
 use std::str::FromStr;
 use log::{info, error, debug};
 
@@ -69,7 +69,13 @@ impl SshClient {
     fn connect(&mut self) {
         info!("[{}] Connecting.", self.hostname);
         let address = format!("{}:{}", self.hostname, self.port);
-        let tcp = TcpStream::connect(address.clone());
+
+        let socket_address = address.to_socket_addrs()
+            .expect(&format!("address {} appears to be invalid", address))
+            .next()
+            .unwrap();
+        let timeout = ::std::time::Duration::from_secs(1);
+        let tcp = TcpStream::connect_timeout(&socket_address, timeout);
 
         match tcp {
             Ok(tcp) => self.tcp = Some(tcp),
