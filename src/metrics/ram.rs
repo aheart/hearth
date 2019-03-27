@@ -19,7 +19,11 @@ impl MetricPlugin for RamMetricPlugin {
 
     fn process_data(&mut self, raw_data: &str, _: &SystemTime) -> HashMap<String, String> {
         let mut mem_total = 0;
-        let mut mem_available = 0;
+        let mut mem_free = 0;
+        let mut mem_buffers = 0;
+        let mut mem_cached = 0;
+        let mut mem_shmem = 0;
+        let mut mem_sreclaimable = 0;
 
         raw_data.split(|c| c == '\n' || c == ':' || c == ' ')
             .filter(|c| *c != "" && *c != "kB")
@@ -28,15 +32,22 @@ impl MetricPlugin for RamMetricPlugin {
             .for_each(|metric|{
                 match metric[0] {
                     "MemTotal" => mem_total = u64::from_str(metric[1]).unwrap_or(0) * 1024,
-                    "MemAvailable" => mem_available = u64::from_str(metric[1]).unwrap_or(0) * 1024,
+                    "MemFree" => mem_free = u64::from_str(metric[1]).unwrap_or(0) * 1024,
+                    "Buffers" => mem_buffers = u64::from_str(metric[1]).unwrap_or(0) * 1024,
+                    "Cached" => mem_cached = u64::from_str(metric[1]).unwrap_or(0) * 1024,
+                    "Shmem" => mem_shmem = u64::from_str(metric[1]).unwrap_or(0) * 1024,
+                    "SReclaimable" => mem_sreclaimable = u64::from_str(metric[1]).unwrap_or(0) * 1024,
                     _ => (),
                 };
             });
+        let mem_cached = mem_cached + mem_sreclaimable - mem_shmem;
 
         let mut metrics = HashMap::new();
-        let mem_used = mem_total - mem_available;
+        let mem_used = mem_total - mem_free - mem_cached - mem_buffers;
         metrics.insert("mem_total".into(), mem_total.to_string());
         metrics.insert("mem_used".into(), mem_used.to_string());
+        metrics.insert("mem_buffers".into(), mem_buffers.to_string());
+        metrics.insert("mem_cached".into(), mem_cached.to_string());
         metrics
     }
 
@@ -44,6 +55,8 @@ impl MetricPlugin for RamMetricPlugin {
         let mut metrics = HashMap::new();
         metrics.insert("mem_total".into(), "0.0".into());
         metrics.insert("mem_used".into(), "0.0".into());
+        metrics.insert("mem_buffers".into(), "0.0".into());
+        metrics.insert("mem_cached".into(), "0.0".into());
         metrics
     }
 }
@@ -103,13 +116,15 @@ DirectMap2M:     9908224 kB
 DirectMap1G:     7340032 kB
         "#;
         let mem_total: u64 = 16256332 * 1024;
-        let mem_available: u64 = 11132000 * 1024;
-        let mem_used: u64 = mem_total - mem_available;
-        assert_parse(raw_data, &mem_total.to_string(), &mem_used.to_string());
-        assert_parse("", "0", "0");
+        let mem_free: u64 = 6890464 * 1024;
+        let mem_buffers: u64 = 536332 * 1024;
+        let mem_cached: u64 = (3729760 + 391760 - 73864) * 1024;
+        let mem_used: u64 = mem_total - mem_free - mem_buffers - mem_cached;
+        assert_parse(raw_data, &mem_total.to_string(), &mem_used.to_string(), &mem_buffers.to_string(), &mem_cached.to_string());
+        assert_parse("", "0", "0", "0", "0");
     }
 
-    fn assert_parse(raw_data: &str, mem_total: &str, mem_used: &str) {
+    fn assert_parse(raw_data: &str, mem_total: &str, mem_used: &str, mem_buffers: &str, mem_cached: &str) {
         let mut metric_plugin = RamMetricPlugin::new();
         let now = SystemTime::now();
         let metrics = metric_plugin.process_data(raw_data, &now);
@@ -117,6 +132,8 @@ DirectMap1G:     7340032 kB
         let mut expected_metrics = HashMap::new();
         expected_metrics.insert("mem_total".to_string(), mem_total.to_string());
         expected_metrics.insert("mem_used".to_string(), mem_used.to_string());
+        expected_metrics.insert("mem_buffers".to_string(), mem_buffers.to_string());
+        expected_metrics.insert("mem_cached".to_string(), mem_cached.to_string());
 
         assert_eq!(metrics, expected_metrics);
     }
