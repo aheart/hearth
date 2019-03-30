@@ -11,7 +11,7 @@
           var i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
           if (i == -1) return bytes + ' B';
           if (i == 0) return bytes + ' ' + sizes[i];
-          return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + sizes[i];
+          return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
       }
 
       function secondsToHumanReadable(seconds) {
@@ -28,9 +28,11 @@
           this.servers = {};
           this.history = {};
 
+
           this.handleExistingServer = function(serverMetric) {
+              let freeMem = Number(serverMetric.mem_total) - (Number(serverMetric.mem_used) + Number(serverMetric.mem_buffers) + Number(serverMetric.mem_cached));
               this.history[serverMetric.server].cpu_history.push(Number(serverMetric.cpu_usage));
-              this.history[serverMetric.server].mem_history.push(Number(serverMetric.mem_used));
+              this.history[serverMetric.server].mem_history.push([Number(serverMetric.mem_used), Number(serverMetric.mem_buffers), Number(serverMetric.mem_cached), freeMem]);
               this.history[serverMetric.server].iowait_history.push(Number(serverMetric.iowait));
               this.history[serverMetric.server].read_throughput_history.push(Number(serverMetric.read_throughput));
               this.history[serverMetric.server].write_throughput_history.push(Number(serverMetric.write_throughput));
@@ -182,7 +184,7 @@
 
               $("#sparkline-cpu." + sparklineClass).sparkline(this.history[serverName].cpu_history, {
                   type: 'line',
-                  height: '2em',
+                  height: '3em',
                   chartRangeMax: 100,
                   chartRangeMin: 0,
                   normalRangeMin: 0,
@@ -191,27 +193,9 @@
               });
               $("#immediate-cpu-" + sparklineClass).text(this.servers[serverName].cpu_usage.padStart(5, ' '));
 
-              $("#sparkline-mem." + sparklineClass).sparkline(this.history[serverName].mem_history, {
-                  type: 'line',
-                  height: '2em',
-                  chartRangeMax: this.servers[serverName].mem_total,
-                  chartRangeMin: 0,
-                  normalRangeMin: 0,
-                  normalRangeMax: this.servers[serverName].mem_total,
-                  lineColor: '#ff7f00',
-                  fillColor: '#ffd4aa',
-                  numberFormatter: bytesToSize
-
-              });
-              $("#immediate-mem-" + sparklineClass).text(
-                  bytesToSize(this.servers[serverName].mem_used)
-                  + "/"
-                  + bytesToSize(this.servers[serverName].mem_total)
-              );
-
               $("#sparkline-cpu." + sparklineClass).sparkline(this.history[serverName].iowait_history, {
                   type: 'line',
-                  height: '2em',
+                  height: '3em',
                   chartRangeMax: 100,
                   chartRangeMin: 0,
 
@@ -221,12 +205,37 @@
                   numberFormatter: function (iowait) { return "iowait: " + iowait + "%"}
               });
 
+              $("#sparkline-mem." + sparklineClass).sparkline(this.history[serverName].mem_history, {
+                  type: 'bar',
+                  height: '3em',
+                  // chartRangeMax: this.servers[serverName].mem_total,
+                  // chartRangeMin: 0,
+                  normalRangeMin: 0,
+                  normalRangeMax: this.servers[serverName].mem_total,
+                  stackedBarColor: ['#658C00', '#0039ff', '#dfde1a', '#cccccc'],
+                  barWidth: 3,
+                  barSpacing: 0,
+                  drawNormalOnTop: true,
+                  numberFormatter: bytesToSize,
+                  tooltipFormatter: function(sp, options, fields) {
+                      return '<div class="jqsfield">' + '<span style="color: ' + fields[0].color + '">&#9679;</span> Free: ' + bytesToSize(fields[0].value) + '</div>' +
+                          '<div class="jqsfield">' + '<span style="color: ' + fields[1].color + '">&#9679;</span> Cached: ' + bytesToSize(fields[1].value) + '</div>' +
+                          '<div class="jqsfield">' + '<span style="color: ' + fields[2].color + '">&#9679;</span> Buffers: ' + bytesToSize(fields[2].value) + '</div>' +
+                          '<div class="jqsfield">' + '<span style="color: ' + fields[3].color + '">&#9679;</span> Used: ' + bytesToSize(fields[3].value) + '</div>';
+                  }
+              });
+              $("#immediate-mem-" + sparklineClass).text(
+                  bytesToSize(this.servers[serverName].mem_used)
+                  + "/"
+                  + bytesToSize(this.servers[serverName].mem_total)
+              );
+
 
               var max_disk_throughput = this.servers[serverName].max_disk_throughput;
               var read_throughput = this.servers[serverName].read_throughput;
               $("#sparkline-disk_stat." + sparklineClass).sparkline(this.history[serverName].read_throughput_history, {
                   type: 'line',
-                  height: '2em',
+                  height: '3em',
                   chartRangeMax: max_disk_throughput,
                   chartRangeMin: 0,
 
@@ -237,7 +246,7 @@
               var write_throughput = this.servers[serverName].write_throughput;
               $("#sparkline-disk_stat." + sparklineClass).sparkline(this.history[serverName].write_throughput_history, {
                   type: 'line',
-                  height: '2em',
+                  height: '3em',
                   chartRangeMax: max_disk_throughput,
                   chartRangeMin: 0,
 
@@ -253,7 +262,7 @@
               var down_bandwidth = this.servers[serverName].down_bandwidth;
               $("#sparkline-net_stat." + sparklineClass).sparkline(this.history[serverName].down_bandwidth_history, {
                   type: 'line',
-                  height: '2em',
+                  height: '3em',
                   chartRangeMax: max_net_bandwidth,
                   chartRangeMin: 0,
 
@@ -264,7 +273,7 @@
               var up_bandwidth = this.servers[serverName].up_bandwidth;
               $("#sparkline-net_stat." + sparklineClass).sparkline(this.history[serverName].up_bandwidth_history, {
                   type: 'line',
-                  height: '2em',
+                  height: '3em',
                   chartRangeMax: max_net_bandwidth,
                   chartRangeMin: 0,
 
@@ -286,13 +295,11 @@
               color_map[black_level] = '#000000';
               $("#sparkline-load_average." + sparklineClass).sparkline(this.history[serverName].load_average_history, {
                   type: 'bar',
-                  height: '2em',
+                  height: '3em',
                   // chartRangeMax: 100,
                   chartRangeMin: 0,
                   normalRangeMin: 0,
                   normalRangeMax: this.servers[serverName].cpus,
-                  lineColor: '#ff3fea',
-                  fillColor: '#ffc9e9',
                   barWidth: 3,
                   barSpacing: 0,
                   drawNormalOnTop: true,
