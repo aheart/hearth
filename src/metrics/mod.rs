@@ -5,10 +5,16 @@ mod la;
 mod ram;
 mod network;
 
-use std::collections::HashMap;
 use std::time::SystemTime;
 
-pub type Metrics = HashMap<String, String>;
+#[derive(PartialEq, Debug)]
+pub enum Metrics {
+    Cpu(cpu::CpuMetrics),
+    Disk(disk::DiskMetrics),
+    La(la::LaMetrics),
+    Net(network::NetMetrics),
+    Ram(ram::RamMetrics),
+}
 
 /// Interface for Metric Plugins that possess the knowledge of retrieving raw metric data and
 /// processing this raw data into structured Metric key value pairs.

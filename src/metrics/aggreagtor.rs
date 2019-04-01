@@ -1,12 +1,48 @@
-use super::MetricPlugin;
 use actix::prelude::*;
 use crate::ssh::SshClient;
-use std::collections::HashMap;
-use std::time::Duration;
 use crate::ws::server::{Message, WsServer};
-use std::time::SystemTime;
-use super::super::config::ServerConfig;
+use crate::config::ServerConfig;
+use crate::metrics::{
+    MetricPlugin,
+    Metrics,
+    cpu::CpuMetrics,
+    disk::DiskMetrics,
+    la::LaMetrics,
+    network::NetMetrics,
+    ram::RamMetrics
+};
 use log::{info, error};
+use std::time::{Duration, SystemTime};
+use serde_derive::Serialize;
+
+
+
+#[derive(Default, Clone, Serialize)]
+pub struct MetricAggregate {
+    index: String,
+    pub server: String,
+    cpus: u8,
+    uptime_seconds: u64,
+
+    cpu: CpuMetrics,
+    disk: DiskMetrics,
+    la: LaMetrics,
+    net: NetMetrics,
+    ram: RamMetrics,
+}
+
+impl MetricAggregate {
+    pub fn add(&mut self, metrics: Metrics) {
+        use Metrics::*;
+        match metrics {
+            Cpu(m) => self.cpu = m,
+            Disk(m) => self.disk = m,
+            La(m) => self.la = m,
+            Net(m) => self.net = m,
+            Ram(m) => self.ram = m,
+        }
+    }
+}
 
 pub fn metric_aggregator_factory(
     ws_server: Addr<WsServer>,
@@ -47,7 +83,7 @@ impl MetricAggregator {
 
         ctx.run_later(delay, move |aggregator, ctx| {
             let mut metrics = aggregator.provider.get_metrics();
-            metrics.insert("index".into(), aggregator.index.to_string());
+            metrics.index = aggregator.index.to_string();
             let ws_message = Message { id: 0, metrics };
             aggregator.ws_server.do_send(ws_message);
             aggregator.send_metrics(ctx);
@@ -87,18 +123,15 @@ impl MetricProvider {
         }
     }
 
-    fn get_metrics(&mut self) -> HashMap<String, String> {
-        let mut accum = self.batch_fetch();
-        let server = self.ssh.get_hostname().to_string();
-        let cpus = self.ssh.get_cpus().to_string();
-        let uptime_seconds = self.ssh.get_uptime().to_string();
-        accum.insert("server".into(), server.to_string());
-        accum.insert("cpus".into(), cpus.to_string());
-        accum.insert("uptime_seconds".into(), uptime_seconds.to_string());
-        accum
+    fn get_metrics(&mut self) -> MetricAggregate {
+        let mut aggregate = self.batch_fetch();
+        aggregate.server = self.ssh.get_hostname().to_string();
+        aggregate.cpus = self.ssh.get_cpus();
+        aggregate.uptime_seconds = self.ssh.get_uptime();
+        aggregate
     }
 
-    fn batch_fetch(&mut self) -> HashMap<String, String> {
+    fn batch_fetch(&mut self) -> MetricAggregate {
         let merged_command = self.metric_providers.iter().fold(
             "".to_string(),
             |accum, provider| {
@@ -118,25 +151,23 @@ impl MetricProvider {
         }
     }
 
-    fn process_raw_data(&mut self, raw_data: &str) -> HashMap<String, String> {
+    fn process_raw_data(&mut self, raw_data: &str) -> MetricAggregate {
         let (results, _): (Vec<&str>, Vec<&str>) =
             raw_data.split("######").partition(|s| !s.is_empty());
         let now = SystemTime::now();
-        let mut metrics = HashMap::new();
+        let mut aggregate = MetricAggregate::default();
+
         self.metric_providers
             .iter_mut()
             .zip(results.iter())
             .for_each(|(provider, &data)| {
-                metrics.extend(provider.process_data(data, &now));
+                aggregate.add(provider.process_data(data, &now));
             });
-        metrics
+
+        aggregate
     }
 
-    fn build_empty_metrics(&mut self) -> HashMap<String, String> {
-        let mut metrics = HashMap::new();
-        self.metric_providers.iter_mut().for_each(|provider| {
-            metrics.extend(provider.empty_metrics());
-        });
-        metrics
+    fn build_empty_metrics(&mut self) -> MetricAggregate {
+        MetricAggregate::default()
     }
 }
