@@ -10,7 +10,7 @@ pub struct SshClient {
     port: usize,
     tcp: Option<TcpStream>,
     session: Option<Session>,
-    cpus: usize,
+    cpus: u8,
     uptime_seconds: u64,
 }
 
@@ -31,7 +31,7 @@ impl SshClient {
         &self.hostname
     }
 
-    pub fn get_cpus(&self) -> usize {
+    pub fn get_cpus(&self) -> u8 {
         self.cpus
     }
 
@@ -124,7 +124,7 @@ impl SshClient {
         info!("[{}] Connection established", self.hostname);
 
         let cpus = self.run("nproc").unwrap_or_else(|_| "0".to_string());
-        self.cpus = usize::from_str(cpus.trim_end()).unwrap_or(0);
+        self.cpus = u8::from_str(cpus.trim_end()).unwrap_or(0);
 
         self.update_uptime();
     }

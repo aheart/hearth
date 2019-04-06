@@ -1,7 +1,13 @@
-use super::MetricPlugin;
-use std::collections::HashMap;
+use super::{MetricPlugin, Metrics};
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
+use serde_derive::Serialize;
+
+#[derive(Default, PartialEq, Debug, Clone, Serialize)]
+pub struct NetMetrics {
+    up_bandwidth: f64,
+    down_bandwidth: f64,
+}
 
 pub struct NetworkMetricPlugin {
     network: Network,
@@ -21,25 +27,19 @@ impl MetricPlugin for NetworkMetricPlugin {
         &self.command
     }
 
-    fn process_data(&mut self, raw_data: &str, timestamp: &SystemTime) -> HashMap<String, String> {
+    fn process_data(&mut self, raw_data: &str, timestamp: &SystemTime) -> Metrics {
         let network_stats = NetworkStats::from_string(&raw_data, timestamp);
 
         self.network.push(network_stats);
 
-        let up_bandwidth = format!("{}", self.network.up_bandwidth());
-        let down_bandwidth = format!("{}", self.network.down_bandwidth());
-
-        let mut metrics = HashMap::new();
-        metrics.insert("up_bandwidth".into(), up_bandwidth);
-        metrics.insert("down_bandwidth".into(), down_bandwidth);
-        metrics
+        Metrics::Net(NetMetrics {
+            up_bandwidth: self.network.up_bandwidth(),
+            down_bandwidth: self.network.down_bandwidth(),
+        })
     }
 
-    fn empty_metrics(&self) -> HashMap<String, String> {
-        let mut metrics = HashMap::new();
-        metrics.insert("up_bandwidth".into(), "0".into());
-        metrics.insert("down_bandwidth".into(), "0".into());
-        metrics
+    fn empty_metrics(&self) -> Metrics {
+        Metrics::Net(NetMetrics::default())
     }
 }
 
@@ -166,13 +166,13 @@ mod test {
         let raw_data_1 = "33597756273\n11137558032";
         let raw_data_2 = "33597768357\n11137566224";
 
-        let down_bandwidth: i64 = 33597768357 - 33597756273;
-        let up_bandwidth: i64 = 11137566224 - 11137558032;
-        assert_parse(raw_data_1, raw_data_2, &down_bandwidth.to_string(), &up_bandwidth.to_string());
-        assert_parse("", "", "0", "0");
+        let down_bandwidth = 33597768357. - 33597756273.;
+        let up_bandwidth = 11137566224. - 11137558032.;
+        assert_parse(raw_data_1, raw_data_2, down_bandwidth, up_bandwidth);
+        assert_parse("", "", 0., 0.);
     }
 
-    fn assert_parse(raw_data_1: &str, raw_data_2: &str, down_bandwidth: &str, up_bandwidth: &str) {
+    fn assert_parse(raw_data_1: &str, raw_data_2: &str, down_bandwidth: f64, up_bandwidth: f64) {
         let mut metric_plugin = NetworkMetricPlugin::new("eth0");
         let now = UNIX_EPOCH + Duration::new(1531416624, 0);
         println!("{:?}", now);
@@ -180,9 +180,10 @@ mod test {
         let now = UNIX_EPOCH + Duration::new(1531416625, 0);
         let metrics = metric_plugin.process_data(raw_data_2, &now);
 
-        let mut expected_metrics = HashMap::new();
-        expected_metrics.insert("down_bandwidth".to_string(), down_bandwidth.to_string());
-        expected_metrics.insert("up_bandwidth".to_string(), up_bandwidth.to_string());
+        let expected_metrics = Metrics::Net(NetMetrics {
+            down_bandwidth,
+            up_bandwidth,
+        });
 
         assert_eq!(metrics, expected_metrics);
     }

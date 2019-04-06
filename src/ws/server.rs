@@ -4,7 +4,7 @@ use serde_json;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use log::info;
-use crate::metrics::Metrics;
+use crate::metrics::aggreagtor::MetricAggregate;
 
 #[derive(Message)]
 #[rtype(usize)]
@@ -20,14 +20,14 @@ pub struct Disconnect {
 #[derive(Message, Clone)]
 pub struct Message {
     pub id: usize,
-    pub metrics: HashMap<String, String>,
+    pub metrics: MetricAggregate,
 }
 
 pub struct WsServer {
     sessions: HashMap<usize, Recipient<super::session::SessionMessage>>,
     clients: HashSet<usize>,
     rng: RefCell<ThreadRng>,
-    metric_buffer: HashMap<String, Vec<Metrics>>,
+    metric_buffer: HashMap<String, Vec<MetricAggregate>>,
 }
 
 impl Default for WsServer {
@@ -99,7 +99,7 @@ impl Handler<Message> for WsServer {
 
     fn handle(&mut self, msg: Message, _: &mut Context<Self>) {
 
-        let hostname = msg.metrics.get("server").unwrap();
+        let hostname = &msg.metrics.server;
 
         if let Some(server_history) = self.metric_buffer.get_mut(hostname) {
             server_history.push(msg.metrics.clone());

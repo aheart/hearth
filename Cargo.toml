@@ -17,7 +17,7 @@ actix-web = "0.7"
 ssh2 = "0.3"
 
 [profile.release]
-lto = true
+lto = "thin"
 opt-level = 3
 
 [workspace]

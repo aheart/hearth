@@ -1,7 +1,13 @@
-use super::MetricPlugin;
-use std::collections::HashMap;
+use super::{MetricPlugin, Metrics};
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
+use serde_derive::Serialize;
+
+#[derive(Default, PartialEq, Debug, Clone, Serialize)]
+pub struct DiskMetrics {
+    write_throughput: f64,
+    read_throughput: f64,
+}
 
 pub struct DiskMetricPlugin {
     disk: Disk,
@@ -21,25 +27,19 @@ impl MetricPlugin for DiskMetricPlugin {
         &self.command
     }
 
-    fn process_data(&mut self, raw_data: &str, timestamp: &SystemTime) -> HashMap<String, String> {
+    fn process_data(&mut self, raw_data: &str, timestamp: &SystemTime) -> Metrics {
         let disk_stats = DiskStats::from_string(&raw_data, timestamp);
 
         self.disk.push(disk_stats);
 
-        let write_throughput = format!("{}", self.disk.write_throughput());
-        let read_throughput = format!("{}", self.disk.read_throughput());
-
-        let mut metrics = HashMap::new();
-        metrics.insert("write_throughput".into(), write_throughput);
-        metrics.insert("read_throughput".into(), read_throughput);
-        metrics
+        Metrics::Disk(DiskMetrics {
+            write_throughput: self.disk.write_throughput(),
+            read_throughput: self.disk.read_throughput(),
+        })
     }
 
-    fn empty_metrics(&self) -> HashMap<String, String> {
-        let mut metrics = HashMap::new();
-        metrics.insert("write_throughput".into(), "0".into());
-        metrics.insert("read_throughput".into(), "0".into());
-        metrics
+    fn empty_metrics(&self) -> Metrics {
+        Metrics::Disk(DiskMetrics::default())
     }
 }
 
@@ -211,13 +211,13 @@ mod test {
     fn test_process_data() {
         let raw_data_1 = "  255586     4852  7024174   115692    31086    50639  3211504   132760        0    48784   248760";
         let raw_data_2 = "  255600     4852  7027286   115700    31108    50799  3213280   132824        0    48852   248832";
-        let read_throughput = (7027286 - 7024174) * 512;
-        let write_throughput = (3213280 - 3211504) * 512;
-        assert_parse(raw_data_1, raw_data_2, &read_throughput.to_string(), &write_throughput.to_string());
-        assert_parse("", "", "0", "0");
+        let read_throughput = (7027286. - 7024174.) * 512.;
+        let write_throughput = (3213280. - 3211504.) * 512.;
+        assert_parse(raw_data_1, raw_data_2, read_throughput, write_throughput);
+        assert_parse("", "", 0.0, 0.0);
     }
 
-    fn assert_parse(raw_data_1: &str, raw_data_2: &str, read_throughput: &str, write_throughput: &str) {
+    fn assert_parse(raw_data_1: &str, raw_data_2: &str, read_throughput: f64, write_throughput: f64) {
         let mut metric_plugin = DiskMetricPlugin::new("sda");
         let now = UNIX_EPOCH + Duration::new(1531416624, 0);
         println!("{:?}", now);
@@ -225,9 +225,10 @@ mod test {
         let now = UNIX_EPOCH + Duration::new(1531416625, 0);
         let metrics = metric_plugin.process_data(raw_data_2, &now);
 
-        let mut expected_metrics = HashMap::new();
-        expected_metrics.insert("read_throughput".to_string(), read_throughput.to_string());
-        expected_metrics.insert("write_throughput".to_string(), write_throughput.to_string());
+        let expected_metrics = Metrics::Disk(DiskMetrics {
+            read_throughput,
+            write_throughput
+        });
 
         assert_eq!(metrics, expected_metrics);
     }
