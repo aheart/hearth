@@ -74,7 +74,7 @@ impl Handler<Connect> for WsServer {
             metrics.append(&mut server.clone());
         }
         let msg = serde_json::to_string(&metrics).unwrap();
-        addr.send(super::session::SessionMessage(msg.clone()))
+        addr.send(super::session::SessionMessage(msg))
             .into_actor(self)
             .then(|_res, _act, _ctx| fut::ok(()))
             .wait(ctx);
@@ -98,19 +98,18 @@ impl Handler<Message> for WsServer {
     type Result = ();
 
     fn handle(&mut self, msg: Message, _: &mut Context<Self>) {
+        let message = serde_json::to_string(&msg.metrics).unwrap();
+        self.send_message(message.as_str(), msg.id);
 
         let hostname = msg.metrics.get("server").unwrap();
 
         if let Some(server_history) = self.metric_buffer.get_mut(hostname) {
-            server_history.push(msg.metrics.clone());
+            server_history.push(msg.metrics);
             if server_history.len() > 120 {
                 server_history.drain(0..1);
             }
         } else {
-            self.metric_buffer.insert(hostname.to_string(), vec![msg.metrics.clone()]);
+            self.metric_buffer.insert(hostname.to_string(), vec![msg.metrics]);
         }
-
-        let message = serde_json::to_string(&msg.metrics).unwrap();
-        self.send_message(message.as_str(), msg.id);
     }
 }
