@@ -119,41 +119,32 @@
                     return server.server
                 });
 
-                let metricOutput = "";
+                let cpuChartHtml = "";
+                let memChartHtml = "";
+                let diskChartHtml = "";
+                let netChartHtml = "";
+                let laChartHtml = "";
 
                 serverNames.forEach(serverName => {
-                    var key = this.servers[serverName].server + " CPU ("
+                    let sparklineClass = serverName.replace(/[^a-zA-Z0-9]/g,'_');
+
+                    cpuChartHtml += this.servers[serverName].server + " CPU ("
                         + this.servers[serverName].cpus
-                        +") utilization (";
-                    var sparklineClass = serverName.replace(/[^a-zA-Z0-9]/g,'_');
-                    metricOutput += key
+                        + ") utilization ("
                         + "<span id=\"immediate-cpu-" + sparklineClass + "\">"
                         + String(this.servers[serverName].cpu.cpu_usage).padStart(5, ' ')
                         + "</span>"
                         + "%)<div id=\"sparkline-cpu\" class=\"" + sparklineClass + "\"></div><br />";
-                });
-                $('#cpu-charts').html(metricOutput);
 
-                metricOutput = '';
-                serverNames.forEach(serverName => {
-                    var key = "RAM (";
-                    var sparklineClass = serverName.replace(/[^a-zA-Z0-9]/g,'_');
-                    metricOutput += key
+                    memChartHtml += "RAM ("
                         + "<span id=\"immediate-mem-" + sparklineClass + "\">"
                         + bytesToSize(this.servers[serverName].ram.mem_used)
                         + "/"
                         + bytesToSize(this.servers[serverName].ram.mem_total)
                         + "</span>"
                         + ")<div id=\"sparkline-mem\" class=\"" + sparklineClass + "\"></div><br />";
-                });
-                $('#mem-charts').html(metricOutput);
 
-
-                metricOutput = '';
-                serverNames.forEach(serverName => {
-                    var key = "Disk Read/Write/Max (";
-                    var sparklineClass = serverName.replace(/[^a-zA-Z0-9]/g,'_');
-                    metricOutput += key
+                    diskChartHtml += "Disk Read/Write/Max ("
                         + "<span id=\"immediate-disk_stat-" + sparklineClass + "\">"
                         + bytesToSize(this.servers[serverName].disk.read_throughput)
                         + " / "
@@ -162,14 +153,8 @@
                         + bytesToSize(this.servers[serverName].disk.max_disk_throughput)
                         + "</span>"
                         + "/s)<div id=\"sparkline-disk_stat\" class=\"" + sparklineClass + "\"></div><br />";
-                });
-                $('#disk_stat-charts').html(metricOutput);
 
-                metricOutput = '';
-                serverNames.forEach(serverName => {
-                    var key = /*this.servers[serverName].server +*/ " NET RX/TX/Max (";
-                    var sparklineClass = serverName.replace(/[^a-zA-Z0-9]/g,'_');
-                    metricOutput += key
+                    netChartHtml += " NET RX/TX/Max ("
                         + "<span id=\"immediate-net_stat-" + sparklineClass + "\">"
                         + bytesToSize(this.servers[serverName].net.down_bandwidth)
                         + " / "
@@ -178,15 +163,9 @@
                         + bytesToSize(this.servers[serverName].net.max_net_bandwidth)
                         + "</span>"
                         + "/s)<div id=\"sparkline-net_stat\" class=\"" + sparklineClass + "\"></div><br />";
-                });
-                $('#net_stat-charts').html(metricOutput);
 
-
-                metricOutput = '';
-                serverNames.forEach(serverName => {
-                    var key = this.servers[serverName].server + " LA 1m (";
-                    var sparklineClass = serverName.replace(/[^a-zA-Z0-9]/g,'_');
-                    metricOutput += key
+                    laChartHtml += this.servers[serverName].server
+                        + " LA 1m ("
                         + "<span id=\"immediate-load_average-" + sparklineClass + "\">"
                         + String(this.servers[serverName].la.load_average).padStart(5, ' ')
                         + "</span>) "
@@ -195,7 +174,11 @@
                         + "</span>"
                         + "<div id=\"sparkline-load_average\" class=\"" + sparklineClass + "\"></div><br />";
                 });
-                $('#load_average-charts').html(metricOutput);
+                $('#cpu-charts').html(cpuChartHtml);
+                $('#mem-charts').html(memChartHtml);
+                $('#disk_stat-charts').html(diskChartHtml);
+                $('#net_stat-charts').html(netChartHtml);
+                $('#load_average-charts').html(laChartHtml);
             };
 
             this.process = function(serverMetric) {
@@ -371,6 +354,7 @@
                     totalNetTx += this.servers[server].net.up_bandwidth;
                 }
 
+
                 totalCpuUsage = totalCpuUsage / Object.keys(this.servers).length;
                 totalCpuUsage = (Math.round(totalCpuUsage) + "%").padStart(3, '_');
                 $("#total-cpus").html(totalCpu);
@@ -382,6 +366,8 @@
                 $("#total-net-tx").html(
                     (bytesToSize(totalNetTx) + "/s").padStart(10, '_')
                 );
+                let numberOfMachines = Object.keys(this.servers).length;
+                $("#number-of-machines").html(numberOfMachines);
             };
         }
 
@@ -442,11 +428,12 @@
 </head>
 <body style="color: #444444; font-size: 12px; font-family:sans-serif">
 <div style="color: #000000; margin-bottom: 1em">
-    Total: CPUs: <span id="total-cpus"></span> |
-    CPU utilization: <span id="total-cpu-usage"></span> |
-    RAM: <span id="total-ram"></span> |
-    Network: RX: <span id="total-net-rx"></span> TX: <span id="total-net-tx"></span>
-    <br>
+  Machines: <span id="number-of-machines"></span>
+  Total: CPUs: <span id="total-cpus"></span> |
+  CPU utilization: <span id="total-cpu-usage"></span> |
+  RAM: <span id="total-ram"></span> |
+  Network: RX:<span id="total-net-rx"></span> TX: <span id="total-net-tx"></span>
+  <br>
 </div>
 
 <div id="cpu-charts" style="white-space:pre; display: inline-block; width: 360px">
