@@ -371,6 +371,7 @@
                     totalNetTx += this.servers[server].net.up_bandwidth;
                 }
 
+
                 totalCpuUsage = totalCpuUsage / Object.keys(this.servers).length;
                 totalCpuUsage = (Math.round(totalCpuUsage) + "%").padStart(3, '_');
                 $("#total-cpus").html(totalCpu);
@@ -382,6 +383,8 @@
                 $("#total-net-tx").html(
                     (bytesToSize(totalNetTx) + "/s").padStart(10, '_')
                 );
+                let numberOfMachines = Object.keys(this.servers).length;
+                $("#number-of-machines").html(numberOfMachines);
             };
         }
 
@@ -442,11 +445,12 @@
 </head>
 <body style="color: #444444; font-size: 12px; font-family:sans-serif">
 <div style="color: #000000; margin-bottom: 1em">
-    Total: CPUs: <span id="total-cpus"></span> |
-    CPU utilization: <span id="total-cpu-usage"></span> |
-    RAM: <span id="total-ram"></span> |
-    Network: RX: <span id="total-net-rx"></span> TX: <span id="total-net-tx"></span>
-    <br>
+  Machines: <span id="number-of-machines"></span>
+  Total: CPUs: <span id="total-cpus"></span> |
+  CPU utilization: <span id="total-cpu-usage"></span> |
+  RAM: <span id="total-ram"></span> |
+  Network: RX:<span id="total-net-rx"></span> TX: <span id="total-net-tx"></span>
+  <br>
 </div>
 
 <div id="cpu-charts" style="white-space:pre; display: inline-block; width: 360px">
