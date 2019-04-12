@@ -2,6 +2,9 @@ Hearth
 ------
 Hearth is an SSH based real-time linux server monitoring solution.
 
+[![Build Status](https://travis-ci.com/aheart/hearth.svg?branch=master)](https://travis-ci.com/aheart/hearth)
+[![Coverage Status](https://coveralls.io/repos/github/aheart/hearth/badge.svg?branch=master)](https://coveralls.io/github/aheart/hearth?branch=master)
+
 It is particularly useful if you:
 * are monitoring 2-15 servers
 * don't want to (or can't) install monitoring software on each server
@@ -10,9 +13,27 @@ It is particularly useful if you:
 
 Pre built releases are available for [windows and linux](https://github.com/aheart/hearth/releases).
 
+### Features
+Examine health and load patterns via a number of metrics across a small cluster.
 
-[![Build Status](https://travis-ci.com/aheart/hearth.svg?branch=master)](https://travis-ci.com/aheart/hearth)
-[![Coverage Status](https://coveralls.io/repos/github/aheart/hearth/badge.svg?branch=master)](https://coveralls.io/github/aheart/hearth?branch=master)
+For demo purposes all the charts are showing data for the same machine under different hostnames.
+![screenshot](./assets/screenshot.png)
+
+
+##### CPU
+![screenshot](./assets/cpu.gif)
+
+##### Memory
+![screenshot](./assets/ram.gif)
+
+##### Disk
+![screenshot](./assets/disk.gif)
+
+##### Network
+![screenshot](./assets/network.gif)
+
+##### Load Average
+![screenshot](./assets/load-average.gif)
 
 
 ### Setup
@@ -21,15 +42,9 @@ Pre built releases are available for [windows and linux](https://github.com/ahea
 3. Run the hearth binary and navigate your browser to the ip/port configured in **config.toml**.
 
 
-### Screenshot of Web UI
-For demo purposes all the charts are showing data for the same machine under different hostnames.
-![screenshot](./screenshot.png)
-
-
 ### Limitations
 * Data can only be retrieved via SSH.
 * Only ssh-agent authentication is supported.
-* Available RAM can be correctly displayed only for linux kernel 3.14 or newer.
 * Network latency can skew the charts.
 * Only a single network interface can be monitored per server.
 * Only a single disk can be monitored per server.
