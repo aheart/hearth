@@ -4,6 +4,7 @@ pub mod aggreagtor;
 mod la;
 mod ram;
 mod network;
+mod space;
 
 use std::time::SystemTime;
 
@@ -14,6 +15,7 @@ pub enum Metrics {
     La(la::LaMetrics),
     Net(network::NetMetrics),
     Ram(ram::RamMetrics),
+    Space(space::SpaceMetrics),
 }
 
 /// Interface for Metric Plugins that possess the knowledge of retrieving raw metric data and
@@ -30,13 +32,18 @@ pub trait MetricPlugin: Send + 'static {
 }
 
 /// Creates all possible metric plugins and returns them as a HashMap
-fn metric_plugin_factory(disk: &str, network_interface: &str) -> Vec<Box<dyn MetricPlugin>> {
+fn metric_plugin_factory(
+    disk: &str,
+    filesystem: &str,
+    network_interface: &str
+) -> Vec<Box<dyn MetricPlugin>> {
     let metric_plugins: Vec<Box<dyn MetricPlugin>> = vec![
         Box::new(cpu::CpuMetricPlugin::new()),
         Box::new(ram::RamMetricPlugin::new()),
         Box::new(la::LoadAverageMetricPlugin::new()),
         Box::new(disk::DiskMetricPlugin::new(disk)),
         Box::new(network::NetworkMetricPlugin::new(network_interface)),
+        Box::new(space::SpaceMetricPlugin::new(filesystem)),
     ];
 
     metric_plugins

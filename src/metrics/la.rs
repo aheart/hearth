@@ -23,7 +23,9 @@ impl MetricPlugin for LoadAverageMetricPlugin {
     }
 
     fn process_data(&mut self, raw_data: &str, _: &SystemTime) -> Metrics {
-        let (parts, _): (Vec<&str>, Vec<&str>) = raw_data.split(' ').partition(|s| !s.is_empty());
+        let (parts, _): (Vec<&str>, Vec<&str>) = raw_data
+            .split_whitespace()
+            .partition(|s| !s.is_empty());
         let load_average_1m = parts.get(0).unwrap_or(&"0"); // and_then?
         let load_average_1m = f64::from_str(load_average_1m).unwrap_or(0.);
 
