@@ -8,6 +8,7 @@ pub struct ServerConfig {
     pub hostname: String,
     pub username: String,
     pub disk: String,
+    pub filesystem: String,
     pub network_interface: String,
 }
 

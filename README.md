@@ -48,6 +48,7 @@ For demo purposes all the charts are showing data for the same machine under dif
 * Network latency can skew the charts.
 * Only a single network interface can be monitored per server.
 * Only a single disk can be monitored per server.
+* Current UI only works well on wide screens
 
 # License
 

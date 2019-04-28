@@ -5,7 +5,7 @@
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-sparklines/2.1.2/jquery.sparkline.js" integrity="sha256-LyvLC4QvPtUU7GAeXnI4atDtDDSKOtUFoIRsysvDSDQ=" crossorigin="anonymous"></script>
     <script language="javascript" type="text/javascript">
-        function bytesToSize(bytes) {
+        function humanBytes(bytes) {
             var sizes = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'EiB', 'ZiB', 'YiB'];
             if (bytes == 0) return '0 B';
             var i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
@@ -13,8 +13,11 @@
             if (i == 0) return Math.round(bytes) + ' ' + sizes[i];
             return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
         }
+        function humanKiBytes(kiBytes) {
+            return humanBytes(kiBytes * 1024);
+        }
 
-        function secondsToHumanReadable(seconds) {
+        function humanTimeInterval(seconds) {
             var seconds = parseInt(seconds, 10);
             var days = Math.floor(seconds / (3600*24));
             seconds  -= days*3600*24;
@@ -124,65 +127,76 @@
                 let diskChartHtml = "";
                 let netChartHtml = "";
                 let laChartHtml = "";
+                let spaceChartHtml = "";
 
                 serverNames.forEach(serverName => {
+                    let server = this.servers[serverName];
                     let sparklineClass = serverName.replace(/[^a-zA-Z0-9]/g,'_');
 
                     cpuChartHtml += "<span title=\""
-                        + this.servers[serverName].ip
+                        + server.ip
                         + "\">"
-                        + this.servers[serverName].server
+                        + server.server
                         + "</span> CPU ("
-                        + this.servers[serverName].cpus
+                        + server.cpus
                         + ") utilization ("
                         + "<span id=\"immediate-cpu-" + sparklineClass + "\">"
-                        + String(this.servers[serverName].cpu.cpu_usage).padStart(5, ' ')
+                        + String(server.cpu.cpu_usage).padStart(5, ' ')
                         + "</span>"
                         + "%)<div id=\"sparkline-cpu\" class=\"" + sparklineClass + "\"></div><br />";
 
                     memChartHtml += "RAM ("
                         + "<span id=\"immediate-mem-" + sparklineClass + "\">"
-                        + bytesToSize(this.servers[serverName].ram.mem_used)
+                        + humanBytes(server.ram.mem_used)
                         + "/"
-                        + bytesToSize(this.servers[serverName].ram.mem_total)
+                        + humanBytes(server.ram.mem_total)
                         + "</span>"
                         + ")<div id=\"sparkline-mem\" class=\"" + sparklineClass + "\"></div><br />";
 
                     diskChartHtml += "Disk Read/Write/Max ("
                         + "<span id=\"immediate-disk_stat-" + sparklineClass + "\">"
-                        + bytesToSize(this.servers[serverName].disk.read_throughput)
+                        + humanBytes(server.disk.read_throughput)
                         + " / "
-                        + bytesToSize(this.servers[serverName].disk.write_throughput)
+                        + humanBytes(server.disk.write_throughput)
                         + " / "
-                        + bytesToSize(this.servers[serverName].disk.max_disk_throughput)
+                        + humanBytes(server.disk.max_disk_throughput)
                         + "</span>"
                         + "/s)<div id=\"sparkline-disk_stat\" class=\"" + sparklineClass + "\"></div><br />";
 
                     netChartHtml += " NET RX/TX/Max ("
                         + "<span id=\"immediate-net_stat-" + sparklineClass + "\">"
-                        + bytesToSize(this.servers[serverName].net.down_bandwidth)
+                        + humanBytes(server.net.down_bandwidth)
                         + " / "
-                        + bytesToSize(this.servers[serverName].net.up_bandwidth)
+                        + humanBytes(server.net.up_bandwidth)
                         + " / "
-                        + bytesToSize(this.servers[serverName].net.max_net_bandwidth)
+                        + humanBytes(server.net.max_net_bandwidth)
                         + "</span>"
                         + "/s)<div id=\"sparkline-net_stat\" class=\"" + sparklineClass + "\"></div><br />";
 
-                    laChartHtml += this.servers[serverName].server
+                    laChartHtml += server.server
                         + " LA 1m ("
                         + "<span id=\"immediate-load_average-" + sparklineClass + "\">"
-                        + String(this.servers[serverName].la.load_average).padStart(5, ' ')
+                        + String(server.la.load_average).padStart(5, ' ')
                         + "</span>) "
                         + "Uptime: <span id=\"immediate-uptime-" + sparklineClass + "\">"
-                        + secondsToHumanReadable(this.servers[serverName].uptime_seconds)
+                        + humanTimeInterval(server.uptime_seconds)
                         + "</span>"
                         + "<div id=\"sparkline-load_average\" class=\"" + sparklineClass + "\"></div><br />";
+
+                    spaceChartHtml += " Space ("
+                        + "<span id=\"immediate-net_stat-" + sparklineClass + "\">"
+                        + humanKiBytes(server.space.used)
+                        + " / "
+                        + humanKiBytes(server.space.total)
+                        + "</span>"
+                        + ")<div id=\"sparkline-space\" class=\"" + sparklineClass + "\"></div><br />";
                 });
                 $('#cpu-charts').html(cpuChartHtml);
                 $('#mem-charts').html(memChartHtml);
                 $('#disk_stat-charts').html(diskChartHtml);
                 $('#net_stat-charts').html(netChartHtml);
                 $('#load_average-charts').html(laChartHtml);
+                $('#space-charts').html(spaceChartHtml);
             };
 
             this.process = function(serverMetric) {
@@ -237,18 +251,18 @@
                     barWidth: 3,
                     barSpacing: 0,
                     drawNormalOnTop: true,
-                    numberFormatter: bytesToSize,
+                    numberFormatter: humanBytes,
                     tooltipFormatter: function(sp, options, fields) {
-                        return '<div class="jqsfield">' + '<span style="color: ' + fields[0].color + '">&#9679;</span> Free: ' + bytesToSize(fields[0].value) + '</div>' +
-                            '<div class="jqsfield">' + '<span style="color: ' + fields[1].color + '">&#9679;</span> Cached: ' + bytesToSize(fields[1].value) + '</div>' +
-                            '<div class="jqsfield">' + '<span style="color: ' + fields[2].color + '">&#9679;</span> Buffers: ' + bytesToSize(fields[2].value) + '</div>' +
-                            '<div class="jqsfield">' + '<span style="color: ' + fields[3].color + '">&#9679;</span> Used: ' + bytesToSize(fields[3].value) + '</div>';
+                        return '<div class="jqsfield">' + '<span style="color: ' + fields[0].color + '">&#9679;</span> Free: ' + humanBytes(fields[0].value) + '</div>' +
+                            '<div class="jqsfield">' + '<span style="color: ' + fields[1].color + '">&#9679;</span> Cached: ' + humanBytes(fields[1].value) + '</div>' +
+                            '<div class="jqsfield">' + '<span style="color: ' + fields[2].color + '">&#9679;</span> Buffers: ' + humanBytes(fields[2].value) + '</div>' +
+                            '<div class="jqsfield">' + '<span style="color: ' + fields[3].color + '">&#9679;</span> Used: ' + humanBytes(fields[3].value) + '</div>';
                     }
                 });
                 $("#immediate-mem-" + sparklineClass).text(
-                    bytesToSize(thisServer.ram.mem_used)
+                    humanBytes(thisServer.ram.mem_used)
                     + "/"
-                    + bytesToSize(thisServer.ram.mem_total)
+                    + humanBytes(thisServer.ram.mem_total)
                 );
 
 
@@ -262,7 +276,7 @@
 
                     lineColor: '#00178c',
                     fillColor: '#ccd4f5',
-                    numberFormatter: function (read_throughput) { return "Read: " + bytesToSize(read_throughput) + "/s"}
+                    numberFormatter: function (read_throughput) { return "Read: " + humanBytes(read_throughput) + "/s"}
                 });
                 var write_throughput = thisServer.disk.write_throughput;
                 $("#sparkline-disk_stat." + sparklineClass).sparkline(thisHistory.write_throughput_history, {
@@ -274,14 +288,14 @@
                     lineColor: '#8c0700',
                     fillColor: '#dd7e76',
                     composite:'true',
-                    numberFormatter: function (write_throughput) { return "Write: " + bytesToSize(write_throughput) + "/s"}
+                    numberFormatter: function (write_throughput) { return "Write: " + humanBytes(write_throughput) + "/s"}
                 });
                 $("#immediate-disk_stat-" + sparklineClass).text(
-                    bytesToSize(read_throughput) +
+                    humanBytes(read_throughput) +
                     "/s / " +
-                    bytesToSize(write_throughput) +
+                    humanBytes(write_throughput) +
                     "/s / " +
-                    bytesToSize(max_disk_throughput)
+                    humanBytes(max_disk_throughput)
                 );
 
 
@@ -295,7 +309,7 @@
 
                     lineColor: '#8c5e00',
                     fillColor: '#f5a900',
-                    numberFormatter: function (down_bandwidth) { return "Download: " + bytesToSize(down_bandwidth) + "/s"}
+                    numberFormatter: function (down_bandwidth) { return "Download: " + humanBytes(down_bandwidth) + "/s"}
                 });
                 var up_bandwidth = thisServer.net.up_bandwidth;
                 $("#sparkline-net_stat." + sparklineClass).sparkline(thisHistory.up_bandwidth_history, {
@@ -307,14 +321,14 @@
                     lineColor: '#005e8c',
                     fillColor: '#0081dd',
                     composite:'true',
-                    numberFormatter: function (up_bandwidth) { return "Upload: " + bytesToSize(up_bandwidth) + "/s"}
+                    numberFormatter: function (up_bandwidth) { return "Upload: " + humanBytes(up_bandwidth) + "/s"}
                 });
                 $("#immediate-net_stat-" + sparklineClass).text(
-                    bytesToSize(down_bandwidth) +
+                    humanBytes(down_bandwidth) +
                     "/s / " +
-                    bytesToSize(up_bandwidth) +
+                    humanBytes(up_bandwidth) +
                     "/s / " +
-                    bytesToSize(max_net_bandwidth)
+                    humanBytes(max_net_bandwidth)
                 );
 
                 var cpus = thisServer.cpus;
@@ -340,7 +354,38 @@
                 });
                 $("#immediate-load_average-" + sparklineClass).text(String(thisServer.la.load_average).padStart(5, ' '));
                 var $uptime = $("#immediate-uptime-" + sparklineClass);
-                $uptime.text(secondsToHumanReadable(thisServer.uptime_seconds));
+                $uptime.text(humanTimeInterval(thisServer.uptime_seconds));
+
+                var cpus = thisServer.cpus;
+                let totalSpace = thisServer.space.total;
+                var yellowLevel = totalSpace * 0.8 +':' + totalSpace * 0.9;
+                var redLevel = totalSpace * 0.9 + ':' + totalSpace * 0.95;
+                var blackLevel = totalSpace * 0.99 + ':';
+                var colorMap = {};
+                colorMap['0:'] = '#658C00';
+                colorMap[yellowLevel] = '#FFB00A';
+                colorMap[redLevel] = '#A60A02';
+                colorMap[blackLevel] = '#000000';
+                $("#sparkline-space." + sparklineClass).sparkline([thisServer.space.used], {
+                    type: 'bar',
+                    height: '3em',
+                    chartRangeMax: thisServer.space.total,
+                    chartRangeMin: 0,
+                    normalRangeMin: 0,
+                    normalRangeMax: thisServer.space.total,
+                    barWidth: 36,
+                    barSpacing: 0,
+                    drawNormalOnTop: true,
+                    colorMap: $.range_map(colorMap),
+                    numberFormatter: function (used) {
+                        return humanKiBytes(used) + "/" + humanKiBytes(thisServer.space.total)
+                    }
+                });
+                $("#immediate-space-" + sparklineClass).text(
+                    humanKiBytes(thisServer.space.used) +
+                    "/ " +
+                    humanKiBytes(thisServer.space.total)
+                );
 
                 //Update Totals:
                 let totalCpu = 0;
@@ -349,6 +394,8 @@
                 let totalUsedRam = 0;
                 let totalNetRx = 0;
                 let totalNetTx = 0;
+                let totalSpaceUsed = 0;
+                let totalSpaceTotal = 0;
                 for (var server in this.servers) {
                     totalCpu += this.servers[server].cpus;
                     totalRam += this.servers[server].ram.mem_total;
@@ -356,22 +403,27 @@
                     totalCpuUsage += this.servers[server].cpu.cpu_usage;
                     totalNetRx += this.servers[server].net.down_bandwidth;
                     totalNetTx += this.servers[server].net.up_bandwidth;
+                    totalSpaceUsed += this.servers[server].space.used;
+                    totalSpaceTotal += this.servers[server].space.total;
                 }
 
 
                 totalCpuUsage = totalCpuUsage / Object.keys(this.servers).length;
                 totalCpuUsage = (Math.round(totalCpuUsage) + "%").padStart(3, '_');
                 $("#total-cpus").html(totalCpu);
-                $("#total-ram").html(bytesToSize(totalUsedRam) + "/" + bytesToSize(totalRam));
+                $("#total-ram").html(humanBytes(totalUsedRam) + "/" + humanBytes(totalRam));
                 $("#total-cpu-usage").html(totalCpuUsage);
                 $("#total-net-rx").html(
-                    (bytesToSize(totalNetRx) + "/s").padStart(10, '_')
+                    (humanBytes(totalNetRx) + "/s").padStart(10, '_')
                 );
                 $("#total-net-tx").html(
-                    (bytesToSize(totalNetTx) + "/s").padStart(10, '_')
+                    (humanBytes(totalNetTx) + "/s").padStart(10, '_')
                 );
                 let numberOfMachines = Object.keys(this.servers).length;
                 $("#number-of-machines").html(numberOfMachines);
+
+                $("#total-space-used").html(humanKiBytes(totalSpaceUsed));
+                $("#total-space-total").html(humanKiBytes(totalSpaceTotal));
             };
         }
 
@@ -437,6 +489,7 @@
   CPU utilization: <span id="total-cpu-usage"></span> |
   RAM: <span id="total-ram"></span> |
   Network: RX:<span id="total-net-rx"></span> TX: <span id="total-net-tx"></span>
+  Disk Space: Used:<span id="total-space-used"></span> Total: <span id="total-space-total"></span>
   <br>
 </div>
 
@@ -450,6 +503,8 @@
 <div id="net_stat-charts" style="white-space:pre; display: inline-block; width: 360px">
 </div>
 <div id="load_average-charts" style="white-space:pre; display: inline-block; width: 360px">
+</div>
+<div id="space-charts" style="white-space:pre; display: inline-block; width: 36px">
 </div>
 </body>
 </html>

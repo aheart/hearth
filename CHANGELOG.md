@@ -5,6 +5,9 @@ This release includes:
 * [#54](https://github.com/aheart/hearth/issues/54):
   The IP address of the server can is now available as tooltip when hovering over the username 
   in the CPU metric column.
+* [#24](https://github.com/aheart/hearth/issues/24):
+  There is a now a disk space indicator after the Load Average Charts
+
 
 
 0.0.4 (2019-04-12)

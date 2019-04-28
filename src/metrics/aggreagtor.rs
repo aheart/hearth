@@ -9,7 +9,8 @@ use crate::metrics::{
     disk::DiskMetrics,
     la::LaMetrics,
     network::NetMetrics,
-    ram::RamMetrics
+    ram::RamMetrics,
+    space::SpaceMetrics,
 };
 use log::{info, error};
 use std::time::{Duration, SystemTime};
@@ -30,6 +31,7 @@ pub struct MetricAggregate {
     la: LaMetrics,
     net: NetMetrics,
     ram: RamMetrics,
+    space: SpaceMetrics,
 }
 
 impl MetricAggregate {
@@ -41,6 +43,7 @@ impl MetricAggregate {
             La(m) => self.la = m,
             Net(m) => self.net = m,
             Ram(m) => self.ram = m,
+            Space(m) => self.space = m,
         }
     }
 }
@@ -57,6 +60,7 @@ pub fn metric_aggregator_factory(
     );
     let plugins = super::metric_plugin_factory(
         &server_config.disk,
+        &server_config.filesystem,
         &server_config.network_interface
     );
     let aggregator = MetricProvider::new(ssh, plugins);
