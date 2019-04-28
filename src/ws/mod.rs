@@ -10,6 +10,7 @@ pub fn ws_route(req: &HttpRequest<session::WsSessionState>) -> Result<HttpRespon
         session::WsSession {
             id: 0,
             hb: Instant::now(),
+            ip: req.peer_addr().map(|s| s.to_string()).unwrap_or("Unknown IP".to_string())
         },
     )
 }

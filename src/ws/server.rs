@@ -11,11 +11,13 @@ use super::session::SessionMessage;
 #[rtype(usize)]
 pub struct Connect {
     pub addr: Recipient<SessionMessage>,
+    pub ip: String,
 }
 
 #[derive(Message)]
 pub struct Disconnect {
     pub id: usize,
+    pub ip: String,
 }
 
 #[derive(Message, Clone)]
@@ -60,7 +62,7 @@ impl Handler<Connect> for WsServer {
     fn handle(&mut self, msg: Connect, ctx: &mut Context<Self>) -> Self::Result {
         let id = self.rng.borrow_mut().gen::<usize>();
         self.sessions.insert(id, msg.addr.clone());
-        info!("Someone joined. Active sessions: {}", self.sessions.len());
+        info!("Client {} connected. Active sessions: {}", msg.ip, self.sessions.len());
 
         let payload = {
             let mut metrics = vec![];
@@ -80,8 +82,10 @@ impl Handler<Disconnect> for WsServer {
     type Result = ();
 
     fn handle(&mut self, msg: Disconnect, _: &mut Context<Self>) {
-        info!("Someone disconnected. Active sessions: {}", self.sessions.len());
-        self.sessions.remove(&msg.id);
+        self.sessions
+            .remove(&msg.id)
+            .expect("There is a bug in handling of WS Disconnect messages");
+        info!("Client {} disconnected. Active sessions: {}", msg.ip, self.sessions.len());
     }
 }
 
