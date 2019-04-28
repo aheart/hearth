@@ -23,6 +23,7 @@ pub struct MetricAggregate {
     pub server: String,
     cpus: u8,
     uptime_seconds: u64,
+    ip: Option<String>,
 
     cpu: CpuMetrics,
     disk: DiskMetrics,
@@ -128,6 +129,7 @@ impl MetricProvider {
         aggregate.server = self.ssh.get_hostname().to_string();
         aggregate.cpus = self.ssh.get_cpus();
         aggregate.uptime_seconds = self.ssh.get_uptime();
+        aggregate.ip = self.ssh.get_ip();
         aggregate
     }
 
@@ -145,7 +147,7 @@ impl MetricProvider {
         match self.ssh.run(&merged_command) {
             Ok(raw_data) => self.process_raw_data(&raw_data),
             Err(e) => {
-                error!("{}: SSH FAILED: {:?}", self.ssh.get_hostname(), e);
+                error!("[{}]: SSH FAILED: {:?}", self.ssh.get_hostname(), e);
                 self.build_empty_metrics()
             }
         }

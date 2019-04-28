@@ -1,3 +1,12 @@
+0.0.5 (2019-xx-xx)
+===================
+This release includes:
+
+* [#54](https://github.com/aheart/hearth/issues/54):
+  The IP address of the server can is now available as tooltip when hovering over the username 
+  in the CPU metric column.
+
+
 0.0.4 (2019-04-12)
 ===================
 This release includes:

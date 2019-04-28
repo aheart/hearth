@@ -2,19 +2,22 @@ use actix::prelude::*;
 use rand::{self, Rng, ThreadRng};
 use serde_json;
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use log::info;
 use crate::metrics::aggreagtor::MetricAggregate;
+use super::session::SessionMessage;
 
 #[derive(Message)]
 #[rtype(usize)]
 pub struct Connect {
-    pub addr: Recipient<super::session::SessionMessage>,
+    pub addr: Recipient<SessionMessage>,
+    pub ip: String,
 }
 
 #[derive(Message)]
 pub struct Disconnect {
     pub id: usize,
+    pub ip: String,
 }
 
 #[derive(Message, Clone)]
@@ -24,8 +27,7 @@ pub struct Message {
 }
 
 pub struct WsServer {
-    sessions: HashMap<usize, Recipient<super::session::SessionMessage>>,
-    clients: HashSet<usize>,
+    sessions: HashMap<usize, Recipient<SessionMessage>>,
     rng: RefCell<ThreadRng>,
     metric_buffer: HashMap<String, Vec<MetricAggregate>>,
 }
@@ -34,7 +36,6 @@ impl Default for WsServer {
     fn default() -> WsServer {
         WsServer {
             sessions: HashMap::new(),
-            clients: HashSet::new(),
             rng: RefCell::new(rand::thread_rng()),
             metric_buffer: HashMap::new(),
         }
@@ -43,11 +44,9 @@ impl Default for WsServer {
 
 impl WsServer {
     fn send_message(&mut self, message: &str, skip_id: usize) {
-        for id in &self.clients {
+        for (id, addr) in &self.sessions {
             if *id != skip_id {
-                if let Some(addr) = self.sessions.get(id) {
-                    let _ = addr.do_send(super::session::SessionMessage(message.to_owned()));
-                };
+                let _ = addr.do_send(SessionMessage(message.to_owned()));
             };
         }
     }
@@ -61,23 +60,20 @@ impl Handler<Connect> for WsServer {
     type Result = usize;
 
     fn handle(&mut self, msg: Connect, ctx: &mut Context<Self>) -> Self::Result {
-        info!("Someone joined");
-
         let id = self.rng.borrow_mut().gen::<usize>();
         self.sessions.insert(id, msg.addr.clone());
+        info!("Client {} connected. Active sessions: {}", msg.ip, self.sessions.len());
 
-        self.clients.insert(id);
+        let payload = {
+            let mut metrics = vec![];
+            for (_, server) in &self.metric_buffer {
+                metrics.append(&mut server.clone());
+            }
 
-        let addr = msg.addr;
-        let mut metrics = vec![];
-        for (_, server) in &self.metric_buffer {
-            metrics.append(&mut server.clone());
-        }
-        let msg = serde_json::to_string(&metrics).unwrap();
-        addr.send(super::session::SessionMessage(msg))
-            .into_actor(self)
-            .then(|_res, _act, _ctx| fut::ok(()))
-            .wait(ctx);
+            serde_json::to_string(&metrics).unwrap()
+        };
+
+        let _ = msg.addr.do_send(SessionMessage(payload));
         id
     }
 }
@@ -86,11 +82,10 @@ impl Handler<Disconnect> for WsServer {
     type Result = ();
 
     fn handle(&mut self, msg: Disconnect, _: &mut Context<Self>) {
-        info!("Someone disconnected");
-
-        if self.sessions.remove(&msg.id).is_some() {
-            self.clients.remove(&msg.id);
-        }
+        self.sessions
+            .remove(&msg.id)
+            .expect("There is a bug in handling of WS Disconnect messages");
+        info!("Client {} disconnected. Active sessions: {}", msg.ip, self.sessions.len());
     }
 }
 

@@ -14,6 +14,7 @@ pub struct WsSessionState {
 pub struct WsSession {
     pub id: usize,
     pub hb: Instant,
+    pub ip: String,
 }
 
 impl Actor for WsSession {
@@ -25,6 +26,7 @@ impl Actor for WsSession {
             .addr
             .send(Connect {
                 addr: addr.recipient(),
+                ip: self.ip.clone()
             })
             .into_actor(self)
             .then(|res, act, ctx| {
@@ -38,7 +40,7 @@ impl Actor for WsSession {
     }
 
     fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
-        ctx.state().addr.do_send(Disconnect { id: self.id });
+        ctx.state().addr.do_send(Disconnect { id: self.id, ip: self.ip.clone() });
         Running::Stop
     }
 }

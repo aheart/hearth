@@ -31,6 +31,13 @@ impl SshClient {
         &self.hostname
     }
 
+    pub fn get_ip(&self) -> Option<String> {
+        self.tcp
+            .as_ref()
+            .and_then(|tcp| tcp.peer_addr().ok())
+            .and_then(|socket| Some(socket.ip().to_string()))
+    }
+
     pub fn get_cpus(&self) -> u8 {
         self.cpus
     }
@@ -67,66 +74,49 @@ impl SshClient {
 
     /// Connect to server, authenticate and fetch the number of CPUs
     fn connect(&mut self) {
+        self.tcp = None;
+        self.session = None;
         info!("[{}] Connecting.", self.hostname);
-        let address = format!("{}:{}", self.hostname, self.port);
-
-        let socket_address = address.to_socket_addrs()
-            .expect(&format!("address {} appears to be invalid", address))
-            .next()
-            .unwrap();
-        let timeout = ::std::time::Duration::from_secs(1);
-        let tcp = TcpStream::connect_timeout(&socket_address, timeout);
-
-        match tcp {
-            Ok(tcp) => self.tcp = Some(tcp),
+        let (tcp, session) = match self.try_connect() {
+            Ok(t) => t,
             Err(e) => {
                 error!(
-                    "Failed to create TCP Connection for {}, error: {:?}",
-                    address, e
+                    "[{}] Failed to connect to host, error: {:?}",
+                    self.hostname, e
                 );
-                self.tcp = None;
-                self.session = None;
                 return;
             }
         };
-        debug!("[{}] Initiating session", self.hostname);
-        let mut session = Session::new().unwrap();
 
-        {
-            let stream = self.tcp.as_ref().unwrap();
-            debug!("[{}] Performing handshake", self.hostname);
-            let handshake = session.handshake(stream);
-            match handshake {
-                Ok(_) => {}
-                Err(e) => {
-                    error!("Handshake failed for {}, error: {:?}", address, e);
-                    self.session = None;
-                    return;
-                }
-            };
-        }
-
-        debug!("[{}] Authenticating", self.hostname);
-        match session.userauth_agent(&*self.username) {
-            Ok(_) => {}
-            Err(e) => {
-                error!("Authentication failed for {}, error: {:?}", address, e);
-            }
-        };
-
-        if !session.authenticated() {
-            error!("Authentication failed for {}", address);
-            self.session = None;
-            return;
-        }
-
+        self.tcp = Some(tcp);
         self.session = Some(session);
         info!("[{}] Connection established", self.hostname);
 
         let cpus = self.run("nproc").unwrap_or_else(|_| "0".to_string());
         self.cpus = u8::from_str(cpus.trim_end()).unwrap_or(0);
-
         self.update_uptime();
+    }
+
+    fn try_connect(&mut self) -> Result<(TcpStream, Session), Box<dyn (::std::error::Error)>> {
+        let address = format!("{}:{}", self.hostname, self.port);
+        let mut socket_address = address.to_socket_addrs()?;
+        let socket_address = socket_address.next()
+            .ok_or(format!("Please verify that the address {} is valid", address))?;
+
+        debug!("[{}] Opening TCP connection", self.hostname);
+        let timeout = ::std::time::Duration::from_secs(1);
+        let tcp = TcpStream::connect_timeout(&socket_address, timeout)?;
+
+        debug!("[{}] Initializing session", self.hostname);
+        let mut session = Session::new().ok_or("Failed to create new session".to_string())?;
+
+        debug!("[{}] Performing handshake", self.hostname);
+        session.handshake(&tcp)?;
+
+        debug!("[{}] Authenticating", self.hostname);
+        session.userauth_agent(&*self.username)?;
+
+        Ok((tcp, session))
     }
 
     /// Get channel to run command
