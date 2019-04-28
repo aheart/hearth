@@ -31,6 +31,13 @@ impl SshClient {
         &self.hostname
     }
 
+    pub fn get_ip(&self) -> Option<String> {
+        self.tcp
+            .as_ref()
+            .and_then(|tcp| tcp.peer_addr().ok())
+            .and_then(|socket| Some(socket.ip().to_string()))
+    }
+
     pub fn get_cpus(&self) -> u8 {
         self.cpus
     }
