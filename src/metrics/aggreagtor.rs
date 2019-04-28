@@ -147,7 +147,7 @@ impl MetricProvider {
         match self.ssh.run(&merged_command) {
             Ok(raw_data) => self.process_raw_data(&raw_data),
             Err(e) => {
-                error!("{}: SSH FAILED: {:?}", self.ssh.get_hostname(), e);
+                error!("[{}]: SSH FAILED: {:?}", self.ssh.get_hostname(), e);
                 self.build_empty_metrics()
             }
         }
