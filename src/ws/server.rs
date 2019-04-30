@@ -1,5 +1,5 @@
 use actix::prelude::*;
-use rand::{self, Rng, ThreadRng};
+use rand::prelude::*;
 use serde_json;
 use std::cell::RefCell;
 use std::collections::HashMap;
