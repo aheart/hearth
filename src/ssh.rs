@@ -129,7 +129,7 @@ impl SshClient {
         let session = self.session.as_ref();
         if session.is_none() {
             return Err(From::from(format!(
-                "[{}] Attempt to connect has failed",
+                "Attempt to connect has failed",
                 self.hostname
             )));
         }
