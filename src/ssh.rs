@@ -101,14 +101,14 @@ impl SshClient {
         let address = format!("{}:{}", self.hostname, self.port);
         let mut socket_address = address.to_socket_addrs()?;
         let socket_address = socket_address.next()
-            .ok_or(format!("Please verify that the address {} is valid", address))?;
+            .ok_or_else(|| format!("Please verify that the address {} is valid", address))?;
 
         debug!("[{}] Opening TCP connection", self.hostname);
         let timeout = ::std::time::Duration::from_secs(1);
         let tcp = TcpStream::connect_timeout(&socket_address, timeout)?;
 
         debug!("[{}] Initializing session", self.hostname);
-        let mut session = Session::new().ok_or("Failed to create new session".to_string())?;
+        let mut session = Session::new().ok_or_else(|| "Failed to create new session".to_string())?;
 
         debug!("[{}] Performing handshake", self.hostname);
         session.handshake(&tcp)?;

@@ -89,7 +89,7 @@ impl NetworkStats {
         Self::new(
             parse_number!(dist_stats, 0),
             parse_number!(dist_stats, 1),
-            timestamp.clone(),
+            *timestamp,
         )
     }
 

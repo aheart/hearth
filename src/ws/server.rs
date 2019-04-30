@@ -66,7 +66,7 @@ impl Handler<Connect> for WsServer {
 
         let payload = {
             let mut metrics = vec![];
-            for (_, server) in &self.metric_buffer {
+            for server in self.metric_buffer.values() {
                 metrics.append(&mut server.clone());
             }
 

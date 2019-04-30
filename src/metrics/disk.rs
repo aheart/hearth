@@ -134,7 +134,7 @@ impl DiskStats {
             parse_number!(dist_stats, 8),
             parse_number!(dist_stats, 9),
             parse_number!(dist_stats, 10),
-            timestamp.clone(),
+            *timestamp,
         )
     }
 

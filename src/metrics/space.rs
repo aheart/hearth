@@ -39,7 +39,7 @@ impl MetricPlugin for SpaceMetricPlugin {
                     used: iter.next().and_then(|v| u64::from_str(v).ok()).unwrap_or(0),
                 })
             })
-            .unwrap_or(SpaceMetrics::default());
+            .unwrap_or_default();
 
         Metrics::Space(metrics)
     }
