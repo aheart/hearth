@@ -1,5 +1,5 @@
 use actix::prelude::*;
-use rand::{self, Rng, ThreadRng};
+use rand::prelude::*;
 use serde_json;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -59,14 +59,14 @@ impl Actor for WsServer {
 impl Handler<Connect> for WsServer {
     type Result = usize;
 
-    fn handle(&mut self, msg: Connect, ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: Connect, _ctx: &mut Context<Self>) -> Self::Result {
         let id = self.rng.borrow_mut().gen::<usize>();
         self.sessions.insert(id, msg.addr.clone());
         info!("Client {} connected. Active sessions: {}", msg.ip, self.sessions.len());
 
         let payload = {
             let mut metrics = vec![];
-            for (_, server) in &self.metric_buffer {
+            for server in self.metric_buffer.values() {
                 metrics.append(&mut server.clone());
             }
 
