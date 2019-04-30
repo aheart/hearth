@@ -184,7 +184,7 @@
                         + "<div id=\"sparkline-load_average\" class=\"" + sparklineClass + "\"></div><br />";
 
                     spaceChartHtml += " Space ("
-                        + "<span id=\"immediate-net_stat-" + sparklineClass + "\">"
+                        + "<span id=\"immediate-space_stat-" + sparklineClass + "\">"
                         + humanKiBytes(server.space.used)
                         + " / "
                         + humanKiBytes(server.space.total)
@@ -360,7 +360,7 @@
                 let totalSpace = thisServer.space.total;
                 var yellowLevel = totalSpace * 0.8 +':' + totalSpace * 0.9;
                 var redLevel = totalSpace * 0.9 + ':' + totalSpace * 0.95;
-                var blackLevel = totalSpace * 0.99 + ':';
+                var blackLevel = totalSpace * 0.95 + ':';
                 var colorMap = {};
                 colorMap['0:'] = '#658C00';
                 colorMap[yellowLevel] = '#FFB00A';
@@ -381,7 +381,7 @@
                         return humanKiBytes(used) + "/" + humanKiBytes(thisServer.space.total)
                     }
                 });
-                $("#immediate-space-" + sparklineClass).text(
+                $("#immediate-space_stat-" + sparklineClass).text(
                     humanKiBytes(thisServer.space.used) +
                     "/ " +
                     humanKiBytes(thisServer.space.total)
