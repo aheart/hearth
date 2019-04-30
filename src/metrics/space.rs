@@ -1,6 +1,6 @@
 use super::{MetricPlugin, Metrics};
 use std::str::FromStr;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
 use serde_derive::Serialize;
 
 #[derive(Default, PartialEq, Debug, Clone, Serialize)]
@@ -27,7 +27,7 @@ impl MetricPlugin for SpaceMetricPlugin {
         &self.command
     }
 
-    fn process_data(&mut self, raw_data: &str, timestamp: &SystemTime) -> Metrics {
+    fn process_data(&mut self, raw_data: &str, _timestamp: &SystemTime) -> Metrics {
         let metrics = raw_data
             .lines()
             .last()
