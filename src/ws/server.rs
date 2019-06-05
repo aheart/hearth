@@ -64,16 +64,11 @@ impl Handler<Connect> for WsServer {
         self.sessions.insert(id, msg.addr.clone());
         info!("Client {} connected. Active sessions: {}", msg.ip, self.sessions.len());
 
-        let payload = {
-            let mut metrics = vec![];
-            for server in self.metric_buffer.values() {
-                metrics.append(&mut server.clone());
-            }
+        for server in self.metric_buffer.values() {
+            let payload = serde_json::to_string(&server).expect("Unable to serialize metrics");
+            let _ = msg.addr.do_send(SessionMessage(payload));
+        }
 
-            serde_json::to_string(&metrics).unwrap()
-        };
-
-        let _ = msg.addr.do_send(SessionMessage(payload));
         id
     }
 }
