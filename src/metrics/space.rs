@@ -33,9 +33,8 @@ impl MetricPlugin for SpaceMetricPlugin {
             .last()
             .and_then(|line| {
                 let mut iter = line.split_whitespace();
-                iter.next();
-                let total = iter.next().and_then(|v| u64::from_str(v).ok()).unwrap_or(0);
-                let free = iter.skip(1).next().and_then(|v| u64::from_str(v).ok()).unwrap_or(0);
+                let total = iter.nth(1).and_then(|v| u64::from_str(v).ok()).unwrap_or(0);
+                let free = iter.nth(1).and_then(|v| u64::from_str(v).ok()).unwrap_or(0);
                 let used = total - free;
                 Some(SpaceMetrics {
                     total,
