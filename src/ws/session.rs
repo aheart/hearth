@@ -1,28 +1,25 @@
 use super::server::{Connect, Disconnect, WsServer};
 use actix::prelude::*;
-use actix_web::ws;
+use actix_web_actors::ws;
 use std::time::Instant;
 use log::warn;
 
 #[derive(Message)]
 pub struct SessionMessage(pub String);
 
-pub struct WsSessionState {
-    pub addr: Addr<WsServer>,
-}
-
 pub struct WsSession {
     pub id: usize,
     pub hb: Instant,
     pub ip: String,
+    pub addr: Addr<WsServer>,
 }
 
 impl Actor for WsSession {
-    type Context = ws::WebsocketContext<Self, WsSessionState>;
+    type Context = ws::WebsocketContext<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
         let addr = ctx.address();
-        ctx.state()
+        self
             .addr
             .send(Connect {
                 addr: addr.recipient(),
@@ -39,8 +36,8 @@ impl Actor for WsSession {
             .wait(ctx);
     }
 
-    fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
-        ctx.state().addr.do_send(Disconnect { id: self.id, ip: self.ip.clone() });
+    fn stopping(&mut self, _: &mut Self::Context) -> Running {
+        self.addr.do_send(Disconnect { id: self.id, ip: self.ip.clone() });
         Running::Stop
     }
 }
@@ -62,7 +59,8 @@ impl StreamHandler<ws::Message, ws::ProtocolError> for WsSession {
             ws::Message::Binary(_) => warn!("Unexpected binary"),
             ws::Message::Close(_) => {
                 ctx.stop();
-            }
+            },
+            ws::Message::Nop => (),
         }
     }
 }

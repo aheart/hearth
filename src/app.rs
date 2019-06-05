@@ -1,11 +1,11 @@
 use actix;
 use actix::*;
-use actix_web::server::HttpServer;
-use actix_web::{fs, App};
+use actix_web::{HttpServer, web};
+use actix_web::{App};
+use actix_files as fs;
 use crate::metrics::aggreagtor::*;
 use crate::ws::ws_route;
 use crate::ws::server::WsServer;
-use crate::ws::session::WsSessionState;
 use crate::config::Config;
 use env_logger;
 use log::info;
@@ -17,7 +17,7 @@ pub fn run(config: Config) {
     env_logger::Builder::from_env(env).init();
 
     let sys = actix::System::new("hearth");
-    let ws_server = Arbiter::start(|_| WsServer::default());
+    let ws_server = WsServer::default().start();
 
     for (index, server_config) in config.servers.as_ref().unwrap().iter().enumerate() {
         let metric_hub = metric_aggregator_factory(
@@ -25,26 +25,18 @@ pub fn run(config: Config) {
             server_config,
             index,
         );
-        let _ = Arbiter::start(|_| metric_hub);
+        Actor::start_in_arbiter(&Arbiter::new(), |_| metric_hub);
     }
 
     HttpServer::new(move || {
-        let state = WsSessionState {
-            addr: ws_server.clone(),
-        };
-
-        App::with_state(state)
-            .resource("/ws/", |r| r.route().f(ws_route))
-            .handler(
-                "/",
-                fs::StaticFiles::new("static/")
-                    .expect("Unable to initialize static resources")
-                    .index_file("index.html")
-            )
+        App::new()
+            .data(ws_server.clone())
+            .service(web::resource("/ws/").to(ws_route))
+            .service(fs::Files::new("/", "./static/").index_file("index.html"))
     }).bind(config.address())
         .expect("Can not start server on given IP/Port")
         .start();
 
     info!("Starting http server: {}", config.address());
-    let _ = sys.run();
+    sys.run().unwrap();
 }
