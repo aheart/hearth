@@ -19,14 +19,18 @@ pub fn run(config: Config) {
     let sys = actix::System::new("hearth");
     let ws_server = WsServer::default().start();
 
-    for (index, server_config) in config.servers.as_ref().unwrap().iter().enumerate() {
-        let metric_hub = metric_aggregator_factory(
-            ws_server.clone(),
-            server_config,
-            index,
-        );
-        Actor::start_in_arbiter(&Arbiter::new(), |_| metric_hub);
-    }
+    config.servers.as_ref()
+        .expect("No servers are listed in the config. Can't continue.")
+        .iter()
+        .enumerate()
+        .for_each(|(index, server_config)| {
+            let metric_hub = metric_aggregator_factory(
+                ws_server.clone(),
+                server_config,
+                index,
+            );
+            Actor::start_in_arbiter(&Arbiter::new(), |_| metric_hub);
+        });
 
     HttpServer::new(move || {
         App::new()
@@ -38,5 +42,5 @@ pub fn run(config: Config) {
         .start();
 
     info!("Starting http server: {}", config.address());
-    sys.run().unwrap();
+    sys.run().expect("There might be a bug in the Actor System");
 }

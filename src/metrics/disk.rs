@@ -173,7 +173,7 @@ impl Disk {
         let time_elapsed = disk_stats
             .current_time()
             .duration_since(self.previous_disk_stats.current_time())
-            .unwrap();
+            .expect("There is a bug in elapsed time calculation");
         let time_elapsed =
             time_elapsed.as_secs() as f64 + time_elapsed.subsec_millis() as f64 / 1000.0 ;
 
