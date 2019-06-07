@@ -130,7 +130,7 @@ impl SshClient {
         if session.is_none() {
             return Err(From::from("Attempt to connect has failed"));
         }
-        let session = session.unwrap();
+        let session = session.expect("There is a bug in the SSH client");
         Ok(session.channel_session()?)
     }
 }
