@@ -29,7 +29,7 @@ impl CpuMetricPlugin {
 impl MetricPlugin for CpuMetricPlugin {
 
     fn get_query(&self) -> &'static str {
-        "grep 'cpu '  /proc/stat"
+        "grep -w 'cpu' /proc/stat"
     }
 
     fn process_data(&mut self, raw_data: &str, _: &SystemTime) -> Metrics {
