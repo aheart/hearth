@@ -6,7 +6,9 @@ This release includes:
   The IP address of the server can is now available as tooltip when hovering over the username 
   in the CPU metric column.
 * [#24](https://github.com/aheart/hearth/issues/24):
-  There is a now a disk space indicator after the Load Average Charts
+  There is a now a disk space indicator after the Load Average Charts.
+* [e08f279](https://github.com/aheart/hearth/commit/e08f279cd435e7ac8b1366683ee0cd0aa86012f2):
+  SSH session will now timeout after 5 seconds of waiting for a blocking operation.
 
 
 
