@@ -109,6 +109,7 @@ impl SshClient {
 
         debug!("[{}] Initializing session", self.hostname);
         let mut session = Session::new().ok_or_else(|| "Failed to create new session".to_string())?;
+        session.set_timeout(5000);
 
         debug!("[{}] Performing handshake", self.hostname);
         session.handshake(&tcp)?;
