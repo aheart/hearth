@@ -4,11 +4,11 @@
 <head>
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-sparklines/2.1.2/jquery.sparkline.js" integrity="sha256-LyvLC4QvPtUU7GAeXnI4atDtDDSKOtUFoIRsysvDSDQ=" crossorigin="anonymous"></script>
-    <script language="javascript" type="text/javascript">
+    <script type="text/javascript">
         function humanBytes(bytes) {
-            var sizes = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'EiB', 'ZiB', 'YiB'];
+            let sizes = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'EiB', 'ZiB', 'YiB'];
             if (bytes == 0) return '0 B';
-            var i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+            let i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
             if (i == -1) return Math.round(bytes) + ' B';
             if (i == 0) return Math.round(bytes) + ' ' + sizes[i];
             return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
@@ -18,13 +18,13 @@
         }
 
         function humanTimeInterval(seconds) {
-            var seconds = parseInt(seconds, 10);
-            var days = Math.floor(seconds / (3600*24));
-            seconds  -= days*3600*24;
-            var hrs   = Math.floor(seconds / 3600);
-            seconds  -= hrs*3600;
-            var mnts = Math.floor(seconds / 60);
-            return days+"D"+String(hrs).padStart(2, '0')+":"+String(mnts).padStart(2, '0');
+            seconds = parseInt(seconds, 10);
+            let days = Math.floor(seconds / 3600 / 24);
+            seconds -= days * 3600 * 24;
+            let hours = Math.floor(seconds / 3600);
+            seconds -= hours * 3600;
+            let minutes = Math.floor(seconds / 60);
+            return days + "D" + String(hours).padStart(2, '0') + ":" + String(minutes).padStart(2, '0');
         }
 
         function round(value) {
@@ -73,7 +73,7 @@
                 let max_read_throughput = Math.max(...this.history[serverMetric.server].read_throughput_history);
                 let max_write_throughput = Math.max(...this.history[serverMetric.server].write_throughput_history);
 
-                max_disk_throughput = Math.max(
+                let max_disk_throughput = Math.max(
                     max_read_throughput,
                     max_write_throughput,
                 );
@@ -83,7 +83,7 @@
                 let max_down_bandwidth = Math.max(...this.history[serverMetric.server].down_bandwidth_history);
                 let max_up_bandwidth = Math.max(...this.history[serverMetric.server].up_bandwidth_history);
 
-                max_net_bandwidth = Math.max(
+                let max_net_bandwidth = Math.max(
                     max_down_bandwidth,
                     max_up_bandwidth,
                 );
@@ -173,8 +173,7 @@
                         + "</span>"
                         + "/s)<div id=\"sparkline-net_stat\" class=\"" + sparklineClass + "\"></div><br />";
 
-                    laChartHtml += server.server
-                        + " LA 1m ("
+                    laChartHtml += " LA 1m ("
                         + "<span id=\"immediate-load_average-" + sparklineClass + "\">"
                         + String(server.la.load_average).padStart(5, ' ')
                         + "</span>) "
@@ -210,10 +209,10 @@
             };
 
             this.updateChart = function(serverMetric) {
-                var serverName = serverMetric.server;
-                var sparklineClass = serverName.replace(/[^a-zA-Z0-9]/g,'_');
-                var thisServer = this.servers[serverName];
-                var thisHistory = this.history[serverName];
+                let serverName = serverMetric.server;
+                let sparklineClass = serverName.replace(/[^a-zA-Z0-9]/g,'_');
+                let thisServer = this.servers[serverName];
+                let thisHistory = this.history[serverName];
 
                 $("#sparkline-cpu." + sparklineClass).sparkline(thisHistory.cpu_history, {
                     type: 'bar',
@@ -266,9 +265,10 @@
                 );
 
 
-                var max_disk_throughput = thisServer.disk.max_disk_throughput;
-                var read_throughput = thisServer.disk.read_throughput;
-                $("#sparkline-disk_stat." + sparklineClass).sparkline(thisHistory.read_throughput_history, {
+                let max_disk_throughput = thisServer.disk.max_disk_throughput;
+                let read_throughput = thisServer.disk.read_throughput;
+                let $diskStat = $("#sparkline-disk_stat." + sparklineClass);
+                $diskStat.sparkline(thisHistory.read_throughput_history, {
                     type: 'line',
                     height: '3em',
                     chartRangeMax: max_disk_throughput,
@@ -278,8 +278,8 @@
                     fillColor: '#ccd4f5',
                     numberFormatter: function (read_throughput) { return "Read: " + humanBytes(read_throughput) + "/s"}
                 });
-                var write_throughput = thisServer.disk.write_throughput;
-                $("#sparkline-disk_stat." + sparklineClass).sparkline(thisHistory.write_throughput_history, {
+                let write_throughput = thisServer.disk.write_throughput;
+                $diskStat.sparkline(thisHistory.write_throughput_history, {
                     type: 'line',
                     height: '3em',
                     chartRangeMax: max_disk_throughput,
@@ -299,9 +299,10 @@
                 );
 
 
-                var max_net_bandwidth = thisServer.net.max_net_bandwidth;
-                var down_bandwidth = thisServer.net.down_bandwidth;
-                $("#sparkline-net_stat." + sparklineClass).sparkline(thisHistory.down_bandwidth_history, {
+                let max_net_bandwidth = thisServer.net.max_net_bandwidth;
+                let down_bandwidth = thisServer.net.down_bandwidth;
+                let $netStat = $("#sparkline-net_stat." + sparklineClass);
+                $netStat.sparkline(thisHistory.down_bandwidth_history, {
                     type: 'line',
                     height: '3em',
                     chartRangeMax: max_net_bandwidth,
@@ -311,8 +312,8 @@
                     fillColor: '#f5a900',
                     numberFormatter: function (down_bandwidth) { return "Download: " + humanBytes(down_bandwidth) + "/s"}
                 });
-                var up_bandwidth = thisServer.net.up_bandwidth;
-                $("#sparkline-net_stat." + sparklineClass).sparkline(thisHistory.up_bandwidth_history, {
+                let up_bandwidth = thisServer.net.up_bandwidth;
+                $netStat.sparkline(thisHistory.up_bandwidth_history, {
                     type: 'line',
                     height: '3em',
                     chartRangeMax: max_net_bandwidth,
@@ -331,11 +332,11 @@
                     humanBytes(max_net_bandwidth)
                 );
 
-                var cpus = thisServer.cpus;
-                var yellowLevel = cpus +':' + (cpus * 3);
-                var red_level = (cpus * 3) + ':' + (cpus * 5);
-                var black_level = cpus * 5 + ':';
-                var color_map = {};
+                let cpus = thisServer.cpus;
+                let yellowLevel = cpus +':' + (cpus * 3);
+                let red_level = (cpus * 3) + ':' + (cpus * 5);
+                let black_level = cpus * 5 + ':';
+                let color_map = {};
                 color_map['0:'] = '#658C00';
                 color_map[yellowLevel] = '#FFB00A';
                 color_map[red_level] = '#A60A02';
@@ -353,15 +354,14 @@
                     colorMap: $.range_map(color_map)
                 });
                 $("#immediate-load_average-" + sparklineClass).text(String(thisServer.la.load_average).padStart(5, ' '));
-                var $uptime = $("#immediate-uptime-" + sparklineClass);
+                let $uptime = $("#immediate-uptime-" + sparklineClass);
                 $uptime.text(humanTimeInterval(thisServer.uptime_seconds));
 
-                var cpus = thisServer.cpus;
                 let totalSpace = thisServer.space.total;
-                var yellowLevel = totalSpace * 0.8 +':' + totalSpace * 0.9;
-                var redLevel = totalSpace * 0.9 + ':' + totalSpace * 0.95;
-                var blackLevel = totalSpace * 0.95 + ':';
-                var colorMap = {};
+                yellowLevel = totalSpace * 0.8 +':' + totalSpace * 0.9;
+                let redLevel = totalSpace * 0.9 + ':' + totalSpace * 0.95;
+                let blackLevel = totalSpace * 0.95 + ':';
+                let colorMap = {};
                 colorMap['0:'] = '#658C00';
                 colorMap[yellowLevel] = '#FFB00A';
                 colorMap[redLevel] = '#A60A02';
@@ -396,7 +396,7 @@
                 let totalNetTx = 0;
                 let totalSpaceUsed = 0;
                 let totalSpaceTotal = 0;
-                for (var server in this.servers) {
+                for (let server in this.servers) {
                     totalCpu += this.servers[server].cpus;
                     totalRam += this.servers[server].ram.mem_total;
                     totalUsedRam += this.servers[server].ram.mem_used;
@@ -428,14 +428,14 @@
         }
 
         $(function() {
-            var conn = null;
-            var metricRepository = new MetricProcessor();
+            let conn = null;
+            let metricRepository = new MetricProcessor();
             connect();
             update_ui();
 
             function connect() {
                 disconnect();
-                var wsUri = (window.location.protocol=='https:'&&'wss://'||'ws://')+window.location.host + '/ws/';
+                let wsUri = (window.location.protocol=='https:'&&'wss://'||'ws://')+window.location.host + '/ws/';
                 conn = new WebSocket(wsUri);
                 console.log('Connecting...');
                 conn.onopen = function() {
@@ -445,7 +445,7 @@
 
                 conn.onmessage = function(e) {
                     try {
-                        var data = JSON.parse(e.data);
+                        let data = JSON.parse(e.data);
                         if (Array.isArray(data)) {
                             for (const metric of data) {
                                 metricRepository.process(metric);
@@ -461,7 +461,7 @@
                     console.log('Disconnected.');
                     conn = null;
                     console.log('Attempting to reconnect in 10 seconds');
-                    setTimeout(connect, 10000);
+                    setTimeout(connect, 5000);
                 };
             }
             function disconnect() {
