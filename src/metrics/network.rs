@@ -2,8 +2,9 @@ use super::{MetricPlugin, Metrics};
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 use serde_derive::Serialize;
+use derive_more::Add;
 
-#[derive(Default, PartialEq, Debug, Clone, Serialize)]
+#[derive(Default, PartialEq, Debug, Clone, Serialize, Add)]
 pub struct NetMetrics {
     up_bandwidth: f64,
     down_bandwidth: f64,

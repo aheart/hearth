@@ -18,6 +18,7 @@ actix-web = "1.0"
 actix-files = "0.1"
 actix-web-actors = "1.0"
 ssh2 = "0.3"
+derive_more = "0.15"
 
 [profile.release]
 lto = "thin"

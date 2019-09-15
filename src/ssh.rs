@@ -121,7 +121,7 @@ impl SshClient {
     }
 
     /// Get channel to run command
-    fn channel(&mut self) -> Result<Channel<'_>, Box<dyn (::std::error::Error)>> {
+    fn channel(&mut self) -> Result<Channel, Box<dyn (::std::error::Error)>> {
         match self.session {
             Some(_) => {}
             None => self.connect(),

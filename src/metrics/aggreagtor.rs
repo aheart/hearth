@@ -1,32 +1,25 @@
-use actix::prelude::*;
-use crate::ssh::SshClient;
-use crate::ws::server::{Message, WsServer};
 use crate::config::ServerConfig;
 use crate::metrics::{
-    MetricPlugin,
-    Metrics,
-    cpu::CpuMetrics,
-    disk::DiskMetrics,
-    la::LaMetrics,
-    network::NetMetrics,
-    ram::RamMetrics,
-    space::SpaceMetrics,
+    cpu::CpuMetrics, disk::DiskMetrics, la::LaMetrics, network::NetMetrics, ram::RamMetrics,
+    space::SpaceMetrics, MetricPlugin, Metrics,
 };
-use log::{info, error};
-use std::time::{Duration, SystemTime};
+use crate::ssh::SshClient;
+use crate::ws::server::{Message, WsServer};
+use actix::prelude::*;
+use log::{error, info};
 use serde_derive::Serialize;
-
-
+use std::ops::Add;
+use std::time::{Duration, SystemTime};
 
 #[derive(Default, Clone, Serialize)]
-pub struct MetricAggregate {
-    index: String,
-    pub server: String,
-    cpus: u8,
+pub struct NodeMetrics {
+    pub index: u8,
+    pub hostname: String,
+    pub cpus: u8,
     uptime_seconds: u64,
-    ip: Option<String>,
+    ip: String,
 
-    cpu: CpuMetrics,
+    pub cpu: CpuMetrics,
     disk: DiskMetrics,
     la: LaMetrics,
     net: NetMetrics,
@@ -34,8 +27,29 @@ pub struct MetricAggregate {
     space: SpaceMetrics,
 }
 
-impl MetricAggregate {
-    pub fn add(&mut self, metrics: Metrics) {
+impl Add for NodeMetrics {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self {
+            index: 0,
+            hostname: "".to_string(),
+            cpus: self.cpus + other.cpus,
+            uptime_seconds: self.uptime_seconds + other.uptime_seconds,
+            ip: "".to_string(),
+
+            cpu: self.cpu + other.cpu,
+            disk: self.disk + other.disk,
+            la: self.la + other.la,
+            net: self.net + other.net,
+            ram: self.ram + other.ram,
+            space: self.space + other.space,
+        }
+    }
+}
+
+impl NodeMetrics {
+    pub fn set(&mut self, metrics: Metrics) {
         use Metrics::*;
         match metrics {
             Cpu(m) => self.cpu = m,
@@ -51,17 +65,17 @@ impl MetricAggregate {
 pub fn metric_aggregator_factory(
     ws_server: Addr<WsServer>,
     server_config: &ServerConfig,
-    index: usize,
+    index: u8,
 ) -> MetricAggregator {
     let ssh = SshClient::new(
         server_config.username.clone(),
         server_config.hostname.clone(),
-        22
+        22,
     );
     let plugins = super::metric_plugin_factory(
         &server_config.disk,
         &server_config.filesystem,
-        &server_config.network_interface
+        &server_config.network_interface,
     );
     let aggregator = MetricProvider::new(ssh, plugins);
 
@@ -71,11 +85,11 @@ pub fn metric_aggregator_factory(
 pub struct MetricAggregator {
     ws_server: Addr<WsServer>,
     provider: MetricProvider,
-    index: usize,
+    pub index: u8,
 }
 
 impl MetricAggregator {
-    pub fn new(ws_server: Addr<WsServer>, provider: MetricProvider, index: usize) -> MetricAggregator {
+    pub fn new(ws_server: Addr<WsServer>, provider: MetricProvider, index: u8) -> MetricAggregator {
         MetricAggregator {
             ws_server,
             provider,
@@ -88,8 +102,11 @@ impl MetricAggregator {
 
         ctx.run_later(delay, move |aggregator, ctx| {
             let mut metrics = aggregator.provider.get_metrics();
-            metrics.index = aggregator.index.to_string();
-            let ws_message = Message { id: 0, metrics };
+            metrics.index = aggregator.index;
+            let ws_message = Message {
+                sender_id: 0,
+                metrics,
+            };
             aggregator.ws_server.do_send(ws_message);
             aggregator.send_metrics(ctx);
         });
@@ -128,25 +145,25 @@ impl MetricProvider {
         }
     }
 
-    fn get_metrics(&mut self) -> MetricAggregate {
+    fn get_metrics(&mut self) -> NodeMetrics {
         let mut aggregate = self.batch_fetch();
-        aggregate.server = self.ssh.get_hostname().to_string();
+        aggregate.hostname = self.ssh.get_hostname().to_string();
         aggregate.cpus = self.ssh.get_cpus();
         aggregate.uptime_seconds = self.ssh.get_uptime();
-        aggregate.ip = self.ssh.get_ip();
+        aggregate.ip = self.ssh.get_ip().unwrap_or_else(|| "".to_string());
         aggregate
     }
 
-    fn batch_fetch(&mut self) -> MetricAggregate {
-        let merged_command = self.metric_providers.iter().fold(
-            "".to_string(),
-            |accum, provider| {
-                if accum == "" {
-                    return provider.get_query().to_string();
-                }
-                format!("{} && printf '######' && {}", accum, provider.get_query())
-            },
-        );
+    fn batch_fetch(&mut self) -> NodeMetrics {
+        let merged_command =
+            self.metric_providers
+                .iter()
+                .fold("".to_string(), |accum, provider| {
+                    if accum == "" {
+                        return provider.get_query().to_string();
+                    }
+                    format!("{} && printf '######' && {}", accum, provider.get_query())
+                });
 
         match self.ssh.run(&merged_command) {
             Ok(raw_data) => self.process_raw_data(&raw_data),
@@ -157,23 +174,23 @@ impl MetricProvider {
         }
     }
 
-    fn process_raw_data(&mut self, raw_data: &str) -> MetricAggregate {
+    fn process_raw_data(&mut self, raw_data: &str) -> NodeMetrics {
         let (results, _): (Vec<&str>, Vec<&str>) =
             raw_data.split("######").partition(|s| !s.is_empty());
         let now = SystemTime::now();
-        let mut aggregate = MetricAggregate::default();
+        let mut aggregate = NodeMetrics::default();
 
         self.metric_providers
             .iter_mut()
             .zip(results.iter())
             .for_each(|(provider, &data)| {
-                aggregate.add(provider.process_data(data, &now));
+                aggregate.set(provider.process_data(data, &now));
             });
 
         aggregate
     }
 
-    fn build_empty_metrics(&mut self) -> MetricAggregate {
-        MetricAggregate::default()
+    fn build_empty_metrics(&mut self) -> NodeMetrics {
+        NodeMetrics::default()
     }
 }

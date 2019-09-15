@@ -5,6 +5,7 @@
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-sparklines/2.1.2/jquery.sparkline.js" integrity="sha256-LyvLC4QvPtUU7GAeXnI4atDtDDSKOtUFoIRsysvDSDQ=" crossorigin="anonymous"></script>
 <script type="text/javascript">
+"use strict";
 function humanBytes(bytes) {
     let sizes = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'EiB', 'ZiB', 'YiB'];
     if (bytes == 0) return '0 B';
@@ -37,32 +38,32 @@ function Widget() {
     this.$cpuScalar = {};
 
     this.renderTemplate = function ($container, server) {
-        let sparklineClass = server.server.replace(/[^a-zA-Z0-9]/g,'_');
+        let sparklineClass = server.hostname.replace(/[^a-zA-Z0-9]/g,'_');
         let html = "";
         html += `<div style="display: block" class="${sparklineClass}">`
 
             + `<div id="cpu-charts" style="white-space:pre; display: inline-block; width: 370px">`
-            + `<span title="${server.ip}">${server.server}</span>`
-            + ` CPU (${server.cpus}) utilization (<span id="immediate-cpu"></span>%)`
+            + `<span title="${server.ip}">${server.hostname}</span>`
+            + ` CPU (<span id="cpu-count"></span>) utilization (<span id="immediate-cpu"></span>%)`
             + `<div id="sparkline-cpu"></div>`
             + `</div>`
 
-            + `<div id="mem-charts" style="white-space:pre; display: inline-block; width: 360px">`
+            + `<div id="mem-charts" style="white-space:pre; display: inline-block; width: 370px">`
             + `RAM (<span id="immediate-mem"></span>`
             + `)<div id="sparkline-mem"></div>`
             + `</div>`
 
-            + `<div id="disk_stat-charts" style="white-space:pre; display: inline-block; width: 350px">`
+            + `<div id="disk_stat-charts" style="white-space:pre; display: inline-block; width: 370px">`
             + `Disk Read/Write/Max (<span id="immediate-disk_stat"></span>/s)`
             + `<div id="sparkline-disk_stat"></div>`
             + `</div>`
 
-            + `<div id="net_stat-charts" style="white-space:pre; display: inline-block; width: 350px">`
+            + `<div id="net_stat-charts" style="white-space:pre; display: inline-block; width: 370px">`
             + ` NET RX/TX/Max (<span id="immediate-net_stat"></span>/s)`
             + `<div id="sparkline-net_stat"></div>`
             + `</div>`
 
-            + `<div id="load_average-charts" style="white-space:pre; display: inline-block; width: 350px">`
+            + `<div id="load_average-charts" style="white-space:pre; display: inline-block; width: 370px">`
             + ` LA 1m (<span id="immediate-load_average"></span>) `
             + `Uptime: <span id="immediate-uptime"></span>`
             + `<div id="sparkline-load_average"></div>`
@@ -79,6 +80,7 @@ function Widget() {
         let dotClass = "." + sparklineClass;
         this.$cpuSparkline = $(dotClass + " #sparkline-cpu");
         this.$cpuScalar = $(dotClass + " #immediate-cpu");
+        this.$cpuCount = $(dotClass + " #cpu-count");
         this.$memSparkline = $(dotClass + " #sparkline-mem");
         this.$memScalar = $(dotClass + " #immediate-mem");
         this.$diskSparkline = $(dotClass + " #sparkline-disk_stat");
@@ -119,6 +121,7 @@ function Widget() {
         this.$cpuScalar.text(
             String(round(thisServer.cpu.cpu_usage)).padStart(5, ' ')
         );
+        this.$cpuCount.text(thisServer.cpus);
 
         this.$memSparkline.sparkline(thisHistory.mem_history, {
             type: 'bar',
@@ -223,7 +226,7 @@ function Widget() {
             drawNormalOnTop: true,
             colorMap: $.range_map(color_map)
         });
-        this.$laScalar.text(String(thisServer.la.load_average).padStart(5, ' '));
+        this.$laScalar.text(String(round(thisServer.la.load_average)).padStart(5, ' '));
         this.$laUptime.text(humanTimeInterval(thisServer.uptime_seconds));
 
         let totalSpace = thisServer.space.total;
@@ -263,7 +266,7 @@ function MetricProcessor() {
 
     this.handleExistingServer = function(serverMetric) {
         let freeMem = serverMetric.ram.mem_total - (serverMetric.ram.mem_used + serverMetric.ram.mem_buffers + serverMetric.ram.mem_cached);
-        this.history[serverMetric.server].cpu_history.push([
+        this.history[serverMetric.hostname].cpu_history.push([
             serverMetric.cpu.user,
             serverMetric.cpu.nice,
             serverMetric.cpu.system,
@@ -273,51 +276,51 @@ function MetricProcessor() {
             serverMetric.cpu.softirq,
         ]);
 
-        this.history[serverMetric.server].mem_history.push([
+        this.history[serverMetric.hostname].mem_history.push([
             serverMetric.ram.mem_used,
             serverMetric.ram.mem_buffers,
             serverMetric.ram.mem_cached,
             freeMem
         ]);
-        this.history[serverMetric.server].read_throughput_history.push(serverMetric.disk.read_throughput);
-        this.history[serverMetric.server].write_throughput_history.push(serverMetric.disk.write_throughput);
-        this.history[serverMetric.server].down_bandwidth_history.push(serverMetric.net.down_bandwidth);
-        this.history[serverMetric.server].up_bandwidth_history.push(serverMetric.net.up_bandwidth);
-        this.history[serverMetric.server].load_average_history.push(serverMetric.la.load_average);
-        if (this.history[serverMetric.server].cpu_history.length > 120) {
-            this.history[serverMetric.server].cpu_history.splice(0, 1);
-            this.history[serverMetric.server].mem_history.splice(0, 1);
-            this.history[serverMetric.server].read_throughput_history.splice(0, 1);
-            this.history[serverMetric.server].write_throughput_history.splice(0, 1);
-            this.history[serverMetric.server].down_bandwidth_history.splice(0, 1);
-            this.history[serverMetric.server].up_bandwidth_history.splice(0, 1);
-            this.history[serverMetric.server].load_average_history.splice(0, 1);
+        this.history[serverMetric.hostname].read_throughput_history.push(serverMetric.disk.read_throughput);
+        this.history[serverMetric.hostname].write_throughput_history.push(serverMetric.disk.write_throughput);
+        this.history[serverMetric.hostname].down_bandwidth_history.push(serverMetric.net.down_bandwidth);
+        this.history[serverMetric.hostname].up_bandwidth_history.push(serverMetric.net.up_bandwidth);
+        this.history[serverMetric.hostname].load_average_history.push(serverMetric.la.load_average);
+        if (this.history[serverMetric.hostname].cpu_history.length > 120) {
+            this.history[serverMetric.hostname].cpu_history.splice(0, 1);
+            this.history[serverMetric.hostname].mem_history.splice(0, 1);
+            this.history[serverMetric.hostname].read_throughput_history.splice(0, 1);
+            this.history[serverMetric.hostname].write_throughput_history.splice(0, 1);
+            this.history[serverMetric.hostname].down_bandwidth_history.splice(0, 1);
+            this.history[serverMetric.hostname].up_bandwidth_history.splice(0, 1);
+            this.history[serverMetric.hostname].load_average_history.splice(0, 1);
         }
 
-        let max_read_throughput = Math.max(...this.history[serverMetric.server].read_throughput_history);
-        let max_write_throughput = Math.max(...this.history[serverMetric.server].write_throughput_history);
+        let max_read_throughput = Math.max(...this.history[serverMetric.hostname].read_throughput_history);
+        let max_write_throughput = Math.max(...this.history[serverMetric.hostname].write_throughput_history);
 
         let max_disk_throughput = Math.max(
             max_read_throughput,
             max_write_throughput,
         );
 
-        this.servers[serverMetric.server]['disk']['max_disk_throughput'] = max_disk_throughput;
+        this.servers[serverMetric.hostname]['disk']['max_disk_throughput'] = max_disk_throughput;
 
-        let max_down_bandwidth = Math.max(...this.history[serverMetric.server].down_bandwidth_history);
-        let max_up_bandwidth = Math.max(...this.history[serverMetric.server].up_bandwidth_history);
+        let max_down_bandwidth = Math.max(...this.history[serverMetric.hostname].down_bandwidth_history);
+        let max_up_bandwidth = Math.max(...this.history[serverMetric.hostname].up_bandwidth_history);
 
         let max_net_bandwidth = Math.max(
             max_down_bandwidth,
             max_up_bandwidth,
         );
 
-        this.servers[serverMetric.server]['net']['max_net_bandwidth'] = max_net_bandwidth;
+        this.servers[serverMetric.hostname]['net']['max_net_bandwidth'] = max_net_bandwidth;
     };
 
     this.handleNewServer = function(serverMetric) {
-        this.history[serverMetric.server] = {
-            cpu_history: [
+        this.history[serverMetric.hostname] = {
+            cpu_history: [[
                 serverMetric.cpu.user,
                 serverMetric.cpu.nice,
                 serverMetric.cpu.system,
@@ -325,13 +328,13 @@ function MetricProcessor() {
                 serverMetric.cpu.iowait,
                 serverMetric.cpu.irq,
                 serverMetric.cpu.softirq,
-            ],
-            mem_history: [
+            ]],
+            mem_history: [[
                 serverMetric.ram.mem_used,
                 serverMetric.ram.mem_buffers,
                 serverMetric.ram.mem_cached,
                 serverMetric.ram.mem_total - (serverMetric.ram.mem_used + serverMetric.ram.mem_buffers + serverMetric.ram.mem_cached),
-            ],
+            ]],
             read_throughput_history: [serverMetric.disk.read_throughput],
             write_throughput_history: [serverMetric.disk.write_throughput],
             down_bandwidth_history: [serverMetric.net.down_bandwidth],
@@ -342,22 +345,30 @@ function MetricProcessor() {
         let serverNames = Object.values(this.servers).sort(function (a, b) {
             return a["index"] - b["index"];
         }).map(function (server) {
-            return server.server
+            return server.hostname
         });
 
         let $container = $('#charts');
         $container.html('');
+        let $aggregateContainer = $('#aggregate-charts');
+        $aggregateContainer.html('');
         serverNames.forEach(serverName => {
             let widget = new Widget();
-            widget.renderTemplate($container, this.servers[serverName]);
+            let server = this.servers[serverName];
+            if (server.index === 0) {
+                widget.renderTemplate($aggregateContainer, server);
+            } else {
+
+                widget.renderTemplate($container, server);
+            }
             this.widgets[serverName] = widget;
         });
     };
 
     this.process = function(serverMetric) {
-        this.servers[serverMetric.server] = serverMetric;
+        this.servers[serverMetric.hostname] = serverMetric;
 
-        if (this.history.hasOwnProperty(serverMetric.server)) {
+        if (this.history.hasOwnProperty(serverMetric.hostname)) {
             this.handleExistingServer(serverMetric);
         } else {
             this.handleNewServer(serverMetric);
@@ -365,51 +376,14 @@ function MetricProcessor() {
     };
 
     this.updateChart = function(serverMetric) {
-        let serverName = serverMetric.server;
+        let serverName = serverMetric.hostname;
         let thisServer = this.servers[serverName];
         let thisHistory = this.history[serverName];
 
         this.widgets[serverName].update(thisServer, thisHistory);
 
-
-
-        //Update Totals:
-        let totalCpu = 0;
-        let totalCpuUsage = 0;
-        let totalRam = 0;
-        let totalUsedRam = 0;
-        let totalNetRx = 0;
-        let totalNetTx = 0;
-        let totalSpaceUsed = 0;
-        let totalSpaceTotal = 0;
-        for (let server in this.servers) {
-            totalCpu += this.servers[server].cpus;
-            totalRam += this.servers[server].ram.mem_total;
-            totalUsedRam += this.servers[server].ram.mem_used;
-            totalCpuUsage += this.servers[server].cpu.cpu_usage;
-            totalNetRx += this.servers[server].net.down_bandwidth;
-            totalNetTx += this.servers[server].net.up_bandwidth;
-            totalSpaceUsed += this.servers[server].space.used;
-            totalSpaceTotal += this.servers[server].space.total;
-        }
-
-
-        totalCpuUsage = totalCpuUsage / Object.keys(this.servers).length;
-        totalCpuUsage = (Math.round(totalCpuUsage) + "%").padStart(3, '_');
-        $("#total-cpus").html(totalCpu);
-        $("#total-ram").html(humanBytes(totalUsedRam) + "/" + humanBytes(totalRam));
-        $("#total-cpu-usage").html(totalCpuUsage);
-        $("#total-net-rx").html(
-            (humanBytes(totalNetRx) + "/s").padStart(10, '_')
-        );
-        $("#total-net-tx").html(
-            (humanBytes(totalNetTx) + "/s").padStart(10, '_')
-        );
         let numberOfMachines = Object.keys(this.servers).length;
         $("#number-of-machines").html(numberOfMachines);
-
-        $("#total-space-used").html(humanKiBytes(totalSpaceUsed));
-        $("#total-space-total").html(humanKiBytes(totalSpaceTotal));
     };
 }
 
@@ -447,7 +421,7 @@ $(function() {
             console.log('Disconnected.');
             conn = null;
             console.log('Attempting to reconnect in 10 seconds');
-            setTimeout(connect, 5000);
+            setTimeout(connect, 1000);
         };
     }
     function disconnect() {
@@ -471,13 +445,12 @@ $(function() {
 <body style="color: #444444; font-size: 12px; font-family:sans-serif">
 <div style="color: #000000; margin-bottom: 1em">
   Machines: <span id="number-of-machines"></span>
-  Total: CPUs: <span id="total-cpus"></span> |
-  CPU utilization: <span id="total-cpu-usage"></span> |
-  RAM: <span id="total-ram"></span> |
-  Network: RX:<span id="total-net-rx"></span> TX: <span id="total-net-tx"></span>
-  Disk Space: Used:<span id="total-space-used"></span> Total: <span id="total-space-total"></span>
-  <br>
+
+  <div id="aggregate-charts" style="white-space:pre"></div>
+    <br>
 </div>
+
+
 
 <div id="charts" style="white-space:pre">
     Loading
