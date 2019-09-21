@@ -1,9 +1,11 @@
+pub mod aggregator;
 mod cpu;
 mod disk;
-pub mod aggreagtor;
+pub mod hub;
 mod la;
-mod ram;
+mod metric_buffer;
 mod network;
+mod ram;
 mod space;
 
 use std::time::SystemTime;
@@ -35,7 +37,7 @@ pub trait MetricPlugin: Send + 'static {
 fn metric_plugin_factory(
     disk: &str,
     filesystem: &str,
-    network_interface: &str
+    network_interface: &str,
 ) -> Vec<Box<dyn MetricPlugin>> {
     let metric_plugins: Vec<Box<dyn MetricPlugin>> = vec![
         Box::new(cpu::CpuMetricPlugin::new()),

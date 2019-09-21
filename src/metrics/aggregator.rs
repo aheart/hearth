@@ -1,25 +1,25 @@
+use super::hub::MetricHub;
 use crate::config::ServerConfig;
 use crate::metrics::{
     cpu::CpuMetrics, disk::DiskMetrics, la::LaMetrics, network::NetMetrics, ram::RamMetrics,
     space::SpaceMetrics, MetricPlugin, Metrics,
 };
 use crate::ssh::SshClient;
-use crate::ws::server::{Message, WsServer};
 use actix::prelude::*;
 use log::{error, info};
 use serde_derive::Serialize;
 use std::ops::Add;
 use std::time::{Duration, SystemTime};
 
-#[derive(Default, Clone, Serialize)]
+#[derive(Default, Clone, Serialize, Message)]
 pub struct NodeMetrics {
-    pub index: u8,
-    pub hostname: String,
-    pub cpus: u8,
+    index: u8,
+    hostname: String,
+    cpus: u8,
     uptime_seconds: u64,
     ip: String,
 
-    pub cpu: CpuMetrics,
+    cpu: CpuMetrics,
     disk: DiskMetrics,
     la: LaMetrics,
     net: NetMetrics,
@@ -49,6 +49,25 @@ impl Add for NodeMetrics {
 }
 
 impl NodeMetrics {
+    pub fn hostname(&self) -> &str {
+        &self.hostname
+    }
+
+    pub fn aggregate(nodes: Vec<Self>) -> Self {
+        let mut cluster = NodeMetrics::default();
+        let node_count = nodes.len();
+
+        for node in nodes {
+            cluster = cluster + node;
+        }
+
+        if node_count > 0 {
+            cluster.cpu = cluster.cpu.divide(node_count as f32);
+        }
+
+        cluster.hostname = "Cluster".to_string();
+        cluster
+    }
     pub fn set(&mut self, metrics: Metrics) {
         use Metrics::*;
         match metrics {
@@ -63,7 +82,7 @@ impl NodeMetrics {
 }
 
 pub fn metric_aggregator_factory(
-    ws_server: Addr<WsServer>,
+    hub: Addr<MetricHub>,
     server_config: &ServerConfig,
     index: u8,
 ) -> MetricAggregator {
@@ -79,19 +98,22 @@ pub fn metric_aggregator_factory(
     );
     let aggregator = MetricProvider::new(ssh, plugins);
 
-    MetricAggregator::new(ws_server, aggregator, index)
+    MetricAggregator::new(hub, aggregator, index)
 }
 
+/// Metric Aggregator
+///
+/// Every second it fetches Metrics from a Metric Provider associated with one particular server
 pub struct MetricAggregator {
-    ws_server: Addr<WsServer>,
+    hub: Addr<MetricHub>,
     provider: MetricProvider,
     pub index: u8,
 }
 
 impl MetricAggregator {
-    pub fn new(ws_server: Addr<WsServer>, provider: MetricProvider, index: u8) -> MetricAggregator {
-        MetricAggregator {
-            ws_server,
+    pub fn new(ws_server: Addr<MetricHub>, provider: MetricProvider, index: u8) -> Self {
+        Self {
+            hub: ws_server,
             provider,
             index,
         }
@@ -103,11 +125,7 @@ impl MetricAggregator {
         ctx.run_later(delay, move |aggregator, ctx| {
             let mut metrics = aggregator.provider.get_metrics();
             metrics.index = aggregator.index;
-            let ws_message = Message {
-                sender_id: 0,
-                metrics,
-            };
-            aggregator.ws_server.do_send(ws_message);
+            aggregator.hub.do_send(metrics);
             aggregator.send_metrics(ctx);
         });
     }
@@ -132,16 +150,19 @@ impl Actor for MetricAggregator {
     }
 }
 
+/// Metric Provider
+///
+/// Retrieves data from a server using the available Metric Plugins
 pub struct MetricProvider {
     ssh: SshClient,
-    metric_providers: Vec<Box<dyn MetricPlugin>>,
+    metric_plugins: Vec<Box<dyn MetricPlugin>>,
 }
 
 impl MetricProvider {
-    pub fn new(ssh: SshClient, metric_providers: Vec<Box<dyn MetricPlugin>>) -> MetricProvider {
-        MetricProvider {
+    pub fn new(ssh: SshClient, metric_providers: Vec<Box<dyn MetricPlugin>>) -> Self {
+        Self {
             ssh,
-            metric_providers,
+            metric_plugins: metric_providers,
         }
     }
 
@@ -155,15 +176,15 @@ impl MetricProvider {
     }
 
     fn batch_fetch(&mut self) -> NodeMetrics {
-        let merged_command =
-            self.metric_providers
-                .iter()
-                .fold("".to_string(), |accum, provider| {
-                    if accum == "" {
-                        return provider.get_query().to_string();
-                    }
-                    format!("{} && printf '######' && {}", accum, provider.get_query())
-                });
+        let merged_command = self
+            .metric_plugins
+            .iter()
+            .fold("".to_string(), |accum, provider| {
+                if accum == "" {
+                    return provider.get_query().to_string();
+                }
+                format!("{} && printf '######' && {}", accum, provider.get_query())
+            });
 
         match self.ssh.run(&merged_command) {
             Ok(raw_data) => self.process_raw_data(&raw_data),
@@ -180,7 +201,7 @@ impl MetricProvider {
         let now = SystemTime::now();
         let mut aggregate = NodeMetrics::default();
 
-        self.metric_providers
+        self.metric_plugins
             .iter_mut()
             .zip(results.iter())
             .for_each(|(provider, &data)| {

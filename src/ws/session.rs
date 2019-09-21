@@ -1,8 +1,21 @@
-use super::server::{Connect, Disconnect, WsServer};
+use super::server::WsServer;
 use actix::prelude::*;
 use actix_web_actors::ws;
-use std::time::Instant;
 use log::warn;
+use std::time::Instant;
+
+#[derive(Message)]
+#[rtype(usize)]
+pub struct Connect {
+    pub addr: Recipient<SessionMessage>,
+    pub ip: String,
+}
+
+#[derive(Message)]
+pub struct Disconnect {
+    pub sender_id: usize,
+    pub ip: String,
+}
 
 #[derive(Message)]
 pub struct SessionMessage(pub String);
@@ -11,7 +24,7 @@ pub struct WsSession {
     pub id: usize,
     pub hb: Instant,
     pub ip: String,
-    pub addr: Addr<WsServer>,
+    pub ws_server: Addr<WsServer>,
 }
 
 impl Actor for WsSession {
@@ -19,11 +32,10 @@ impl Actor for WsSession {
 
     fn started(&mut self, ctx: &mut Self::Context) {
         let addr = ctx.address();
-        self
-            .addr
+        self.ws_server
             .send(Connect {
                 addr: addr.recipient(),
-                ip: self.ip.clone()
+                ip: self.ip.clone(),
             })
             .into_actor(self)
             .then(|res, act, ctx| {
@@ -37,7 +49,10 @@ impl Actor for WsSession {
     }
 
     fn stopping(&mut self, _: &mut Self::Context) -> Running {
-        self.addr.do_send(Disconnect { sender_id: self.id, ip: self.ip.clone() });
+        self.ws_server.do_send(Disconnect {
+            sender_id: self.id,
+            ip: self.ip.clone(),
+        });
         Running::Stop
     }
 }
@@ -59,7 +74,7 @@ impl StreamHandler<ws::Message, ws::ProtocolError> for WsSession {
             ws::Message::Binary(_) => warn!("Unexpected binary"),
             ws::Message::Close(_) => {
                 ctx.stop();
-            },
+            }
             ws::Message::Nop => (),
         }
     }
