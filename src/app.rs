@@ -27,7 +27,7 @@ pub fn run(config: Config) {
             let metric_hub = metric_aggregator_factory(
                 ws_server.clone(),
                 server_config,
-                index,
+                index as u8 + 1,
             );
             Actor::start_in_arbiter(&Arbiter::new(), |_| metric_hub);
         });

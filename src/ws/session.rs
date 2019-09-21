@@ -37,7 +37,7 @@ impl Actor for WsSession {
     }
 
     fn stopping(&mut self, _: &mut Self::Context) -> Running {
-        self.addr.do_send(Disconnect { id: self.id, ip: self.ip.clone() });
+        self.addr.do_send(Disconnect { sender_id: self.id, ip: self.ip.clone() });
         Running::Stop
     }
 }

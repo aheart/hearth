@@ -2,8 +2,9 @@ use super::{MetricPlugin, Metrics};
 use std::str::FromStr;
 use std::time::SystemTime;
 use serde_derive::Serialize;
+use derive_more::Add;
 
-#[derive(Default, PartialEq, Debug, Clone, Serialize)]
+#[derive(Default, PartialEq, Debug, Clone, Serialize, Add)]
 pub struct CpuMetrics {
     cpu_usage: f32,
     user: f32,
@@ -13,6 +14,21 @@ pub struct CpuMetrics {
     iowait: f32,
     irq: f32,
     softirq: f32,
+}
+
+impl CpuMetrics {
+    pub fn divide(self, divisor: f32) -> Self {
+        Self {
+            cpu_usage: self.cpu_usage / divisor,
+            user: self.user / divisor,
+            nice: self.nice / divisor,
+            system: self.system / divisor,
+            idle: self.idle / divisor,
+            iowait: self.iowait / divisor,
+            irq: self.irq / divisor,
+            softirq: self.softirq / divisor,
+        }
+    }
 }
 
 pub struct CpuMetricPlugin {
