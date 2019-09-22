@@ -15,10 +15,13 @@ pub fn ws_route(
         session::WsSession {
             id: 0,
             hb: Instant::now(),
-            ip: req.peer_addr().map(|s| s.to_string()).unwrap_or_else(|| "Unknown IP".to_string()),
-            addr: srv.get_ref().clone(),
+            ip: req
+                .peer_addr()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "Unknown IP".to_string()),
+            ws_server: srv.get_ref().clone(),
         },
         &req,
-        stream
+        stream,
     )
 }

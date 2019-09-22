@@ -261,12 +261,23 @@ function Widget() {
 
 function MetricProcessor() {
     this.servers = {};
+    this.cluster = {};
     this.history = {};
+    this.clusterHistory = [];
     this.widgets = {};
+    this.clusterWidget = {};
 
-    this.handleExistingServer = function(serverMetric) {
+    this.handleExistingServer = function(serverMetric, type) {
+        let storage, history;
+        if (type === "NodeMetrics") {
+            storage = this.servers[serverMetric.hostname];
+            history = this.history[serverMetric.hostname];
+        } else if (type === "ClusterMetrics") {
+            storage = this.cluster;
+            history = this.clusterHistory;
+        }
         let freeMem = serverMetric.ram.mem_total - (serverMetric.ram.mem_used + serverMetric.ram.mem_buffers + serverMetric.ram.mem_cached);
-        this.history[serverMetric.hostname].cpu_history.push([
+        history.cpu_history.push([
             serverMetric.cpu.user,
             serverMetric.cpu.nice,
             serverMetric.cpu.system,
@@ -276,50 +287,51 @@ function MetricProcessor() {
             serverMetric.cpu.softirq,
         ]);
 
-        this.history[serverMetric.hostname].mem_history.push([
+        history.mem_history.push([
             serverMetric.ram.mem_used,
             serverMetric.ram.mem_buffers,
             serverMetric.ram.mem_cached,
             freeMem
         ]);
-        this.history[serverMetric.hostname].read_throughput_history.push(serverMetric.disk.read_throughput);
-        this.history[serverMetric.hostname].write_throughput_history.push(serverMetric.disk.write_throughput);
-        this.history[serverMetric.hostname].down_bandwidth_history.push(serverMetric.net.down_bandwidth);
-        this.history[serverMetric.hostname].up_bandwidth_history.push(serverMetric.net.up_bandwidth);
-        this.history[serverMetric.hostname].load_average_history.push(serverMetric.la.load_average);
-        if (this.history[serverMetric.hostname].cpu_history.length > 120) {
-            this.history[serverMetric.hostname].cpu_history.splice(0, 1);
-            this.history[serverMetric.hostname].mem_history.splice(0, 1);
-            this.history[serverMetric.hostname].read_throughput_history.splice(0, 1);
-            this.history[serverMetric.hostname].write_throughput_history.splice(0, 1);
-            this.history[serverMetric.hostname].down_bandwidth_history.splice(0, 1);
-            this.history[serverMetric.hostname].up_bandwidth_history.splice(0, 1);
-            this.history[serverMetric.hostname].load_average_history.splice(0, 1);
+        history.read_throughput_history.push(serverMetric.disk.read_throughput);
+        history.write_throughput_history.push(serverMetric.disk.write_throughput);
+        history.down_bandwidth_history.push(serverMetric.net.down_bandwidth);
+        history.up_bandwidth_history.push(serverMetric.net.up_bandwidth);
+        history.load_average_history.push(serverMetric.la.load_average);
+        if (history.cpu_history.length > 120) {
+            history.cpu_history.splice(0, 1);
+            history.mem_history.splice(0, 1);
+            history.read_throughput_history.splice(0, 1);
+            history.write_throughput_history.splice(0, 1);
+            history.down_bandwidth_history.splice(0, 1);
+            history.up_bandwidth_history.splice(0, 1);
+            history.load_average_history.splice(0, 1);
         }
 
-        let max_read_throughput = Math.max(...this.history[serverMetric.hostname].read_throughput_history);
-        let max_write_throughput = Math.max(...this.history[serverMetric.hostname].write_throughput_history);
+        let max_read_throughput = Math.max(...history.read_throughput_history);
+        let max_write_throughput = Math.max(...history.write_throughput_history);
 
         let max_disk_throughput = Math.max(
             max_read_throughput,
             max_write_throughput,
         );
 
-        this.servers[serverMetric.hostname]['disk']['max_disk_throughput'] = max_disk_throughput;
+        storage['disk']['max_disk_throughput'] = max_disk_throughput;
 
-        let max_down_bandwidth = Math.max(...this.history[serverMetric.hostname].down_bandwidth_history);
-        let max_up_bandwidth = Math.max(...this.history[serverMetric.hostname].up_bandwidth_history);
+        let max_down_bandwidth = Math.max(...history.down_bandwidth_history);
+        let max_up_bandwidth = Math.max(...history.up_bandwidth_history);
 
         let max_net_bandwidth = Math.max(
             max_down_bandwidth,
             max_up_bandwidth,
         );
 
-        this.servers[serverMetric.hostname]['net']['max_net_bandwidth'] = max_net_bandwidth;
+        storage['net']['max_net_bandwidth'] = max_net_bandwidth;
     };
 
-    this.handleNewServer = function(serverMetric) {
-        this.history[serverMetric.hostname] = {
+    this.handleNewServer = function(serverMetric, type) {
+
+        let history = {
             cpu_history: [[
                 serverMetric.cpu.user,
                 serverMetric.cpu.nice,
@@ -342,48 +354,60 @@ function MetricProcessor() {
             load_average_history: [serverMetric.la.load_average]
         };
 
-        let serverNames = Object.values(this.servers).sort(function (a, b) {
-            return a["index"] - b["index"];
-        }).map(function (server) {
-            return server.hostname
-        });
 
-        let $container = $('#charts');
-        $container.html('');
-        let $aggregateContainer = $('#aggregate-charts');
-        $aggregateContainer.html('');
-        serverNames.forEach(serverName => {
-            let widget = new Widget();
-            let server = this.servers[serverName];
-            if (server.index === 0) {
-                widget.renderTemplate($aggregateContainer, server);
-            } else {
 
+        let serverNames = Object.values(this.servers)
+            .sort(function (a, b) {
+                return a["index"] - b["index"];
+            }).map(function (server) {
+                return server.hostname
+            });
+
+        if (type === "NodeMetrics") {
+            this.history[serverMetric.hostname] = history;
+            let $container = $('#charts');
+            $container.html('');
+            serverNames.forEach(serverName => {
+                let widget = new Widget();
+                let server = this.servers[serverName];
                 widget.renderTemplate($container, server);
-            }
-            this.widgets[serverName] = widget;
-        });
-    };
-
-    this.process = function(serverMetric) {
-        this.servers[serverMetric.hostname] = serverMetric;
-
-        if (this.history.hasOwnProperty(serverMetric.hostname)) {
-            this.handleExistingServer(serverMetric);
-        } else {
-            this.handleNewServer(serverMetric);
+                this.widgets[serverName] = widget;
+            });
+        } else if (type === "ClusterMetrics") {
+            this.clusterHistory = history;
+            let $aggregateContainer = $('#aggregate-charts');
+            $aggregateContainer.html('');
+            let widget = new Widget();
+            widget.renderTemplate($aggregateContainer, serverMetric);
+            this.clusterWidget = widget;
+            this.clusterHistory = history;
         }
     };
 
-    this.updateChart = function(serverMetric) {
-        let serverName = serverMetric.hostname;
-        let thisServer = this.servers[serverName];
-        let thisHistory = this.history[serverName];
+    this.process = function(serverMetric, type) {
+        if (type === "NodeMetrics") {
+            this.servers[serverMetric.hostname] = serverMetric;
+        } else if (type === "ClusterMetrics") {
+            this.cluster = serverMetric;
+        }
 
-        this.widgets[serverName].update(thisServer, thisHistory);
 
-        let numberOfMachines = Object.keys(this.servers).length;
-        $("#number-of-machines").html(numberOfMachines);
+        if ((type === "NodeMetrics" && this.history.hasOwnProperty(serverMetric.hostname)) ||
+            (type === "ClusterMetrics" && this.clusterHistory.hasOwnProperty("cpu_history"))) {
+            this.handleExistingServer(serverMetric, type);
+        } else {
+            this.handleNewServer(serverMetric, type);
+        }
+    };
+
+    this.updateChart = function(hostname, type) {
+        if (type === "NodeMetrics") {
+            this.widgets[hostname].update(this.servers[hostname], this.history[hostname]);
+        } else if (type === "ClusterMetrics") {
+            this.clusterWidget.update(this.cluster, this.clusterHistory);
+            let numberOfMachines = Object.keys(this.servers).length;
+            $("#number-of-machines").html(numberOfMachines);
+        }
     };
 }
 
@@ -404,18 +428,17 @@ $(function() {
         };
 
         conn.onmessage = function(e) {
-            try {
-                let data = JSON.parse(e.data);
-                if (Array.isArray(data)) {
-                    for (const metric of data) {
-                        metricRepository.process(metric);
-                    }
-                } else {
-                    metricRepository.process(data);
-                    metricRepository.updateChart(data);
-                }
-            } catch (e) {
+            let message = JSON.parse(e.data);
+            if (!message.hasOwnProperty("data")) {
+                return;
             }
+
+            let hostname = "";
+            for (const metric of message.data) {
+                metricRepository.process(metric, message.type);
+                hostname = metric.hostname;
+            }
+            metricRepository.updateChart(hostname, message.type);
         };
         conn.onclose = function() {
             console.log('Disconnected.');
