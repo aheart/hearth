@@ -1,3 +1,11 @@
+0.0.6 (2019-09-xx)
+===================
+This release includes:
+
+* [#69](https://github.com/aheart/hearth/issues/69)
+  The first charts on the top of the page now show aggregated data across all the servers.
+
+
 0.0.5 (2019-07-30)
 ===================
 This release includes:
