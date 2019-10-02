@@ -16,6 +16,7 @@ pub struct NodeMetrics {
     index: u8,
     hostname: String,
     cpus: u8,
+    online: bool,
     uptime_seconds: u64,
     ip: String,
 
@@ -35,6 +36,7 @@ impl Add for NodeMetrics {
             index: 0,
             hostname: "".to_string(),
             cpus: self.cpus + other.cpus,
+            online: false,
             uptime_seconds: self.uptime_seconds + other.uptime_seconds,
             ip: "".to_string(),
 
@@ -200,6 +202,7 @@ impl MetricProvider {
             raw_data.split("######").partition(|s| !s.is_empty());
         let now = SystemTime::now();
         let mut aggregate = NodeMetrics::default();
+        aggregate.online = true;
 
         self.metric_plugins
             .iter_mut()

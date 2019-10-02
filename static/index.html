@@ -400,13 +400,17 @@ function MetricProcessor() {
         }
     };
 
-    this.updateChart = function(hostname, type) {
+    this.updateAggregateMetrics = function(hostname, type) {
+        let numberOfMachinesUp = Object.keys(this.servers)
+                  .filter(key => this.servers[key].online).length;
+
+        let numberOfMachines = Object.keys(this.servers).length;
+
         if (type === "NodeMetrics") {
             this.widgets[hostname].update(this.servers[hostname], this.history[hostname]);
         } else if (type === "ClusterMetrics") {
             this.clusterWidget.update(this.cluster, this.clusterHistory);
-            let numberOfMachines = Object.keys(this.servers).length;
-            $("#number-of-machines").html(numberOfMachines);
+            $( "#number-of-machines").html(`${numberOfMachinesUp}/${numberOfMachines}`);
         }
     };
 }
@@ -438,7 +442,7 @@ $(function() {
                 metricRepository.process(metric, message.type);
                 hostname = metric.hostname;
             }
-            metricRepository.updateChart(hostname, message.type);
+            metricRepository.updateAggregateMetrics(hostname, message.type);
         };
         conn.onclose = function() {
             console.log('Disconnected.');
