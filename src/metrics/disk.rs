@@ -1,13 +1,22 @@
 use super::{MetricPlugin, Metrics};
+use derive_more::Add;
+use serde_derive::Serialize;
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
-use serde_derive::Serialize;
-use derive_more::Add;
 
 #[derive(Default, PartialEq, Debug, Clone, Serialize, Add)]
 pub struct DiskMetrics {
     write_throughput: f64,
     read_throughput: f64,
+}
+
+impl DiskMetrics {
+    pub fn divide(self, divisor: f64) -> Self {
+        Self {
+            write_throughput: self.write_throughput / divisor,
+            read_throughput: self.read_throughput / divisor,
+        }
+    }
 }
 
 pub struct DiskMetricPlugin {
@@ -62,20 +71,7 @@ pub struct DiskStats {
 
 impl Default for DiskStats {
     fn default() -> DiskStats {
-        DiskStats::new(
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            UNIX_EPOCH,
-        )
+        DiskStats::new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, UNIX_EPOCH)
     }
 }
 
@@ -176,7 +172,7 @@ impl Disk {
             .duration_since(self.previous_disk_stats.current_time())
             .expect("There is a bug in elapsed time calculation");
         let time_elapsed =
-            time_elapsed.as_secs() as f64 + time_elapsed.subsec_millis() as f64 / 1000.0 ;
+            time_elapsed.as_secs() as f64 + time_elapsed.subsec_millis() as f64 / 1000.0;
 
         let sectors_read = diff!(
             disk_stats.sectors_read(),
@@ -218,7 +214,12 @@ mod test {
         assert_parse("", "", 0.0, 0.0);
     }
 
-    fn assert_parse(raw_data_1: &str, raw_data_2: &str, read_throughput: f64, write_throughput: f64) {
+    fn assert_parse(
+        raw_data_1: &str,
+        raw_data_2: &str,
+        read_throughput: f64,
+        write_throughput: f64,
+    ) {
         let mut metric_plugin = DiskMetricPlugin::new("sda");
         let now = UNIX_EPOCH + Duration::new(1531416624, 0);
         println!("{:?}", now);
@@ -228,7 +229,7 @@ mod test {
 
         let expected_metrics = Metrics::Disk(DiskMetrics {
             read_throughput,
-            write_throughput
+            write_throughput,
         });
 
         assert_eq!(metrics, expected_metrics);

@@ -1,8 +1,8 @@
 use super::{MetricPlugin, Metrics};
+use derive_more::Add;
+use serde_derive::Serialize;
 use std::str::FromStr;
 use std::time::SystemTime;
-use serde_derive::Serialize;
-use derive_more::Add;
 
 #[derive(Default, PartialEq, Debug, Clone, Serialize, Add)]
 pub struct RamMetrics {
@@ -10,6 +10,17 @@ pub struct RamMetrics {
     mem_used: u64,
     mem_buffers: u64,
     mem_cached: u64,
+}
+
+impl RamMetrics {
+    pub fn divide(self, divisor: u64) -> Self {
+        Self {
+            mem_total: self.mem_total / divisor,
+            mem_used: self.mem_used / divisor,
+            mem_buffers: self.mem_buffers / divisor,
+            mem_cached: self.mem_cached / divisor,
+        }
+    }
 }
 
 pub struct RamMetricPlugin {}
@@ -21,7 +32,6 @@ impl RamMetricPlugin {
 }
 
 impl MetricPlugin for RamMetricPlugin {
-
     fn get_query(&self) -> &'static str {
         "cat /proc/meminfo"
     }
@@ -34,18 +44,21 @@ impl MetricPlugin for RamMetricPlugin {
         let mut mem_shmem = 0;
         let mut mem_sreclaimable = 0;
 
-        raw_data.split(|c| c == '\n' || c == ':' || c == ' ')
+        raw_data
+            .split(|c| c == '\n' || c == ':' || c == ' ')
             .filter(|c| *c != "" && *c != "kB")
             .collect::<Vec<&str>>()
             .chunks(2)
-            .for_each(|metric|{
+            .for_each(|metric| {
                 match metric[0] {
                     "MemTotal" => mem_total = u64::from_str(metric[1]).unwrap_or(0) * 1024,
                     "MemFree" => mem_free = u64::from_str(metric[1]).unwrap_or(0) * 1024,
                     "Buffers" => mem_buffers = u64::from_str(metric[1]).unwrap_or(0) * 1024,
                     "Cached" => mem_cached = u64::from_str(metric[1]).unwrap_or(0) * 1024,
                     "Shmem" => mem_shmem = u64::from_str(metric[1]).unwrap_or(0) * 1024,
-                    "SReclaimable" => mem_sreclaimable = u64::from_str(metric[1]).unwrap_or(0) * 1024,
+                    "SReclaimable" => {
+                        mem_sreclaimable = u64::from_str(metric[1]).unwrap_or(0) * 1024
+                    }
                     _ => (),
                 };
             });
@@ -56,7 +69,7 @@ impl MetricPlugin for RamMetricPlugin {
             mem_total,
             mem_used,
             mem_buffers,
-            mem_cached
+            mem_cached,
         })
     }
 
@@ -128,7 +141,13 @@ DirectMap1G:     7340032 kB
         assert_parse("", 0, 0, 0, 0);
     }
 
-    fn assert_parse(raw_data: &str, mem_total: u64, mem_used: u64, mem_buffers: u64, mem_cached: u64) {
+    fn assert_parse(
+        raw_data: &str,
+        mem_total: u64,
+        mem_used: u64,
+        mem_buffers: u64,
+        mem_cached: u64,
+    ) {
         let mut metric_plugin = RamMetricPlugin::new();
         let now = SystemTime::now();
         let metrics = metric_plugin.process_data(raw_data, &now);

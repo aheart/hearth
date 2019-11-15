@@ -15,7 +15,7 @@ use std::time::{Duration, SystemTime};
 pub struct NodeMetrics {
     index: u8,
     hostname: String,
-    cpus: u8,
+    cpus: u16,
     online: bool,
     uptime_seconds: u64,
     ip: String,
@@ -70,6 +70,33 @@ impl NodeMetrics {
         cluster.hostname = "Cluster".to_string();
         cluster
     }
+
+    pub fn aggregate_avg(measurements: Vec<Self>) -> Self {
+        let mut average = NodeMetrics::default();
+        let measurement_count = measurements.len();
+        let last_measurement = measurements.last().unwrap().clone();
+
+        for measurement in measurements {
+            average = average + measurement;
+        }
+
+        if measurement_count > 0 {
+            average.cpu = average.cpu.divide(measurement_count as f32);
+            average.disk = average.disk.divide(measurement_count as f64);
+            average.la = average.la.divide(measurement_count as f64);
+            average.net = average.net.divide(measurement_count as f64);
+            average.ram = average.ram.divide(measurement_count as u64);
+            average.space = average.space.divide(measurement_count as u64);
+        }
+
+        average.index = last_measurement.index.clone();
+        average.hostname = last_measurement.hostname().to_string();
+        average.cpus = last_measurement.cpus.clone();
+        average.uptime_seconds = last_measurement.uptime_seconds.clone();
+        average.ip = last_measurement.ip.clone();
+        average
+    }
+
     pub fn set(&mut self, metrics: Metrics) {
         use Metrics::*;
         match metrics {
@@ -171,7 +198,7 @@ impl MetricProvider {
     fn get_metrics(&mut self) -> NodeMetrics {
         let mut aggregate = self.batch_fetch();
         aggregate.hostname = self.ssh.get_hostname().to_string();
-        aggregate.cpus = self.ssh.get_cpus();
+        aggregate.cpus = self.ssh.get_cpus() as u16;
         aggregate.uptime_seconds = self.ssh.get_uptime();
         aggregate.ip = self.ssh.get_ip().unwrap_or_else(|| "".to_string());
         aggregate
