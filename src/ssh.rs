@@ -1,8 +1,8 @@
+use log::{debug, error, info};
 use ssh2::{Channel, Session};
 use std::io::prelude::*;
 use std::net::{TcpStream, ToSocketAddrs};
 use std::str::FromStr;
-use log::{info, error, debug};
 
 pub struct SshClient {
     username: String,
@@ -55,7 +55,8 @@ impl SshClient {
     }
 
     pub fn update_uptime(&mut self) {
-        let raw_uptime = self.run("cat /proc/uptime")
+        let raw_uptime = self
+            .run("cat /proc/uptime")
             .unwrap_or_else(|_| "0".to_string());
         let (parts, _): (Vec<&str>, Vec<&str>) = raw_uptime.split(' ').partition(|s| !s.is_empty());
         let uptime_seconds = parts.get(0).unwrap_or(&"0"); // and_then?
@@ -100,7 +101,8 @@ impl SshClient {
     fn try_connect(&mut self) -> Result<(TcpStream, Session), Box<dyn (::std::error::Error)>> {
         let address = format!("{}:{}", self.hostname, self.port);
         let mut socket_address = address.to_socket_addrs()?;
-        let socket_address = socket_address.next()
+        let socket_address = socket_address
+            .next()
             .ok_or_else(|| format!("Please verify that the address {} is valid", address))?;
 
         debug!("[{}] Opening TCP connection", self.hostname);
@@ -108,7 +110,8 @@ impl SshClient {
         let tcp = TcpStream::connect_timeout(&socket_address, timeout)?;
 
         debug!("[{}] Initializing session", self.hostname);
-        let mut session = Session::new().ok_or_else(|| "Failed to create new session".to_string())?;
+        let mut session =
+            Session::new().ok_or_else(|| "Failed to create new session".to_string())?;
         session.set_timeout(5000);
 
         debug!("[{}] Performing handshake", self.hostname);
