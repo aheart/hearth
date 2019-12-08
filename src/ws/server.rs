@@ -1,5 +1,5 @@
 use super::session::SessionMessage;
-use crate::metrics::aggregator::NodeMetrics;
+use crate::metrics::aggregator::Node;
 use crate::metrics::hub::MetricHub;
 use crate::ws::session::{Connect, Disconnect};
 use actix::prelude::*;
@@ -19,8 +19,8 @@ pub struct InboundMessage {
 #[derive(Message, Clone, Serialize)]
 #[serde(tag = "type", content = "data")]
 pub enum MessageData {
-    NodeMetrics(Vec<NodeMetrics>),
-    ClusterMetrics(Vec<NodeMetrics>),
+    NodeMetrics(Vec<Node>),
+    ClusterMetrics(Vec<Node>),
 }
 
 #[derive(Message, Clone, Serialize)]
@@ -106,7 +106,7 @@ impl Actor for WsServer {
 impl Handler<Connect> for WsServer {
     type Result = usize;
 
-    fn handle(&mut self, msg: Connect, ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: Connect, _ctx: &mut Context<Self>) -> Self::Result {
         let id = self.rng.borrow_mut().gen::<usize>();
         self.sessions.insert(
             id,
@@ -160,7 +160,7 @@ impl Handler<InboundMessage> for WsServer {
 
     fn handle(&mut self, msg: InboundMessage, ctx: &mut Context<Self>) {
         if let Some(client) = self.sessions.get_mut(&msg.session_id) {
-            client.subscription = msg.subscribe_to.clone();
+            client.subscription = msg.subscribe_to;
             self.hub.do_send(ClientJoined {
                 ws_server: ctx.address(),
                 session_id: msg.session_id,

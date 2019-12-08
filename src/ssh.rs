@@ -8,10 +8,10 @@ pub struct SshClient {
     username: String,
     hostname: String,
     port: usize,
-    tcp: Option<TcpStream>,
     session: Option<Session>,
     cpus: u8,
     uptime_seconds: u64,
+    ip: String,
 }
 
 impl SshClient {
@@ -20,10 +20,10 @@ impl SshClient {
             username,
             hostname,
             port,
-            tcp: None,
             session: None,
             cpus: 0, //@TODO Move to cpu module. Can be extracted from /proc/stat
             uptime_seconds: 0,
+            ip: "".to_string(),
         }
     }
 
@@ -31,11 +31,18 @@ impl SshClient {
         &self.hostname
     }
 
-    pub fn get_ip(&self) -> Option<String> {
-        self.tcp
-            .as_ref()
-            .and_then(|tcp| tcp.peer_addr().ok())
-            .and_then(|socket| Some(socket.ip().to_string()))
+    pub fn get_ip(&self) -> &str {
+        &self.ip
+    }
+
+    fn try_get_ip(&self) -> Option<String> {
+        self.session
+            .as_ref()?
+            .tcp_stream()
+            .as_ref()?
+            .peer_addr()
+            .and_then(|socket| Ok(socket.ip().to_string()))
+            .ok()
     }
 
     pub fn get_cpus(&self) -> u8 {
@@ -75,10 +82,9 @@ impl SshClient {
 
     /// Connect to server, authenticate and fetch the number of CPUs
     fn connect(&mut self) {
-        self.tcp = None;
         self.session = None;
         info!("[{}] Connecting.", self.hostname);
-        let (tcp, session) = match self.try_connect() {
+        let session = match self.try_connect() {
             Ok(t) => t,
             Err(e) => {
                 error!(
@@ -89,16 +95,16 @@ impl SshClient {
             }
         };
 
-        self.tcp = Some(tcp);
         self.session = Some(session);
         info!("[{}] Connection established", self.hostname);
 
         let cpus = self.run("nproc").unwrap_or_else(|_| "0".to_string());
         self.cpus = u8::from_str(cpus.trim_end()).unwrap_or(0);
         self.update_uptime();
+        self.ip = self.try_get_ip().unwrap_or_else(|| "".to_string());
     }
 
-    fn try_connect(&mut self) -> Result<(TcpStream, Session), Box<dyn (::std::error::Error)>> {
+    fn try_connect(&mut self) -> Result<Session, Box<dyn (::std::error::Error)>> {
         let address = format!("{}:{}", self.hostname, self.port);
         let mut socket_address = address.to_socket_addrs()?;
         let socket_address = socket_address
@@ -110,17 +116,17 @@ impl SshClient {
         let tcp = TcpStream::connect_timeout(&socket_address, timeout)?;
 
         debug!("[{}] Initializing session", self.hostname);
-        let mut session =
-            Session::new().ok_or_else(|| "Failed to create new session".to_string())?;
+        let mut session = Session::new()?;
+        session.set_tcp_stream(tcp);
         session.set_timeout(5000);
 
         debug!("[{}] Performing handshake", self.hostname);
-        session.handshake(&tcp)?;
+        session.handshake()?;
 
         debug!("[{}] Authenticating", self.hostname);
         session.userauth_agent(&*self.username)?;
 
-        Ok((tcp, session))
+        Ok(session)
     }
 
     /// Get channel to run command
