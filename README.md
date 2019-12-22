@@ -8,7 +8,7 @@ Hearth is an SSH based real-time linux server monitoring solution.
 It is particularly useful if you:
 * are monitoring 2-15 servers
 * don't want to (or can't) install monitoring software on each server
-* don't care about historical data (>2 minutes)
+* don't care about historical data (>30 minutes)
 * want to make the charts available to a number of people via a Web UI
 
 Pre built releases are available for [windows and linux](https://github.com/aheart/hearth/releases).
@@ -45,7 +45,6 @@ For demo purposes all the charts are showing data for the same machine under dif
 ### Limitations
 * Data can only be retrieved via SSH.
 * Only ssh-agent authentication is supported.
-* Network latency can skew the charts.
 * Only a single network interface can be monitored per server.
 * Only a single disk can be monitored per server.
 * Current UI only works well on wide screens

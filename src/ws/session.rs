@@ -13,19 +13,21 @@ struct Command {
 }
 
 #[derive(Message)]
-#[rtype(usize)]
+#[rtype(result = "usize")]
 pub struct Connect {
     pub addr: Recipient<SessionMessage>,
     pub ip: String,
 }
 
 #[derive(Message)]
+#[rtype(result = "()")]
 pub struct Disconnect {
     pub sender_id: usize,
     pub ip: String,
 }
 
 #[derive(Message)]
+#[rtype(result = "()")]
 pub struct SessionMessage(pub String);
 
 pub struct WsSession {
@@ -51,7 +53,7 @@ impl Actor for WsSession {
                     Ok(res) => act.id = res,
                     _ => ctx.stop(),
                 }
-                fut::ok(())
+                fut::ready(())
             })
             .wait(ctx);
     }
@@ -73,8 +75,16 @@ impl Handler<SessionMessage> for WsSession {
     }
 }
 
-impl StreamHandler<ws::Message, ws::ProtocolError> for WsSession {
-    fn handle(&mut self, msg: ws::Message, ctx: &mut Self::Context) {
+impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsSession {
+    //    fn handle(&mut self, msg: ws::Message, ctx: &mut Self::Context) {
+    fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
+        let msg = match msg {
+            Err(_) => {
+                ctx.stop();
+                return;
+            }
+            Ok(msg) => msg,
+        };
         match msg {
             ws::Message::Ping(msg) => ctx.pong(&msg),
             ws::Message::Pong(_) => self.hb = Instant::now(),
@@ -89,6 +99,9 @@ impl StreamHandler<ws::Message, ws::ProtocolError> for WsSession {
             }
             ws::Message::Binary(_) => warn!("Unexpected binary"),
             ws::Message::Close(_) => {
+                ctx.stop();
+            }
+            ws::Message::Continuation(_) => {
                 ctx.stop();
             }
             ws::Message::Nop => (),

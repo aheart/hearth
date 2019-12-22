@@ -6,7 +6,7 @@ use actix_web::{web, Error, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
 use std::time::Instant;
 
-pub fn ws_route(
+pub async fn ws_route(
     req: HttpRequest,
     stream: web::Payload,
     srv: web::Data<Addr<server::WsServer>>,
