@@ -1,13 +1,22 @@
 use super::{MetricPlugin, Metrics};
+use derive_more::Add;
+use serde_derive::Serialize;
 use std::str::FromStr;
 use std::time::SystemTime;
-use serde_derive::Serialize;
-use derive_more::Add;
 
 #[derive(Default, PartialEq, Debug, Clone, Serialize, Add)]
 pub struct SpaceMetrics {
     total: u64,
     used: u64,
+}
+
+impl SpaceMetrics {
+    pub fn divide(self, divisor: u64) -> Self {
+        Self {
+            total: self.total / divisor,
+            used: self.used / divisor,
+        }
+    }
 }
 
 pub struct SpaceMetricPlugin {
@@ -37,10 +46,7 @@ impl MetricPlugin for SpaceMetricPlugin {
                 let total = iter.nth(1).and_then(|v| u64::from_str(v).ok()).unwrap_or(0);
                 let free = iter.nth(1).and_then(|v| u64::from_str(v).ok()).unwrap_or(0);
                 let used = total - free;
-                Some(SpaceMetrics {
-                    total,
-                    used,
-                })
+                Some(SpaceMetrics { total, used })
             })
             .unwrap_or_default();
 
@@ -51,7 +57,6 @@ impl MetricPlugin for SpaceMetricPlugin {
         Metrics::Space(SpaceMetrics::default())
     }
 }
-
 
 #[cfg(test)]
 mod test {
@@ -71,10 +76,7 @@ mod test {
         let mut metric_plugin = SpaceMetricPlugin::new("sda1");
         let metrics = metric_plugin.process_data(raw_data, &std::time::UNIX_EPOCH);
 
-        let expected_metrics = Metrics::Space(SpaceMetrics {
-            total,
-            used
-        });
+        let expected_metrics = Metrics::Space(SpaceMetrics { total, used });
 
         assert_eq!(metrics, expected_metrics);
     }

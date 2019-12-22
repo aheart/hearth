@@ -1,12 +1,20 @@
 use super::{MetricPlugin, Metrics};
+use derive_more::Add;
+use serde_derive::Serialize;
 use std::str::FromStr;
 use std::time::SystemTime;
-use serde_derive::Serialize;
-use derive_more::Add;
 
 #[derive(Default, PartialEq, Debug, Clone, Serialize, Add)]
 pub struct LaMetrics {
     load_average: f64,
+}
+
+impl LaMetrics {
+    pub fn divide(self, divisor: f64) -> Self {
+        Self {
+            load_average: self.load_average / divisor,
+        }
+    }
 }
 
 pub struct LoadAverageMetricPlugin {}
@@ -18,20 +26,18 @@ impl LoadAverageMetricPlugin {
 }
 
 impl MetricPlugin for LoadAverageMetricPlugin {
-
     fn get_query(&self) -> &'static str {
         "cat /proc/loadavg"
     }
 
     fn process_data(&mut self, raw_data: &str, _: &SystemTime) -> Metrics {
-        let (parts, _): (Vec<&str>, Vec<&str>) = raw_data
-            .split_whitespace()
-            .partition(|s| !s.is_empty());
+        let (parts, _): (Vec<&str>, Vec<&str>) =
+            raw_data.split_whitespace().partition(|s| !s.is_empty());
         let load_average_1m = parts.get(0).unwrap_or(&"0"); // and_then?
         let load_average_1m = f64::from_str(load_average_1m).unwrap_or(0.);
 
         Metrics::La(LaMetrics {
-            load_average: load_average_1m
+            load_average: load_average_1m,
         })
     }
 
@@ -57,9 +63,7 @@ mod test {
         let now = SystemTime::now();
         let metrics = metric_plugin.process_data(raw_data, &now);
 
-        let expected_metrics = Metrics::La(LaMetrics {
-            load_average
-        });
+        let expected_metrics = Metrics::La(LaMetrics { load_average });
 
         assert_eq!(metrics, expected_metrics);
     }

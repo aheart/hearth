@@ -1,30 +1,71 @@
 use crate::metrics::aggregator::NodeMetrics;
+use crate::ws::server::View;
 use std::collections::HashMap;
 
 pub struct MetricBuffer {
     limit: usize,
-    storage: Vec<NodeMetrics>,
+    storage_1s: Vec<NodeMetrics>,
+
+    samples_since_5s_rollup: u8,
+    storage_5s: Vec<NodeMetrics>,
+
+    samples_since_15s_rollup: u8,
+    storage_15s: Vec<NodeMetrics>,
 }
 
 impl MetricBuffer {
     pub fn new(limit: usize) -> MetricBuffer {
         MetricBuffer {
             limit,
-            storage: Vec::new(),
+            storage_1s: Vec::with_capacity(limit),
+            samples_since_5s_rollup: 0,
+            storage_5s: Vec::with_capacity(limit),
+            samples_since_15s_rollup: 0,
+            storage_15s: Vec::with_capacity(limit),
         }
     }
 
-    pub fn storage(&self) -> &Vec<NodeMetrics> {
-        &self.storage
+    pub fn storage(&self, timeframe: View) -> &Vec<NodeMetrics> {
+        match timeframe {
+            View::OverviewOneSecond => &self.storage_1s,
+            View::OverviewFiveSeconds => &self.storage_5s,
+            View::OverviewFifteenSeconds => &self.storage_15s,
+        }
     }
 
     pub fn push(&mut self, metrics: NodeMetrics) {
-        let length = self.storage.len();
+        let length = self.storage_1s.len();
         if length >= self.limit {
-            self.storage.drain(0..(length - self.limit));
+            self.storage_1s.drain(0..(length - self.limit));
         }
 
-        self.storage.push(metrics);
+        self.storage_1s.push(metrics);
+        self.samples_since_5s_rollup += 1;
+        self.samples_since_15s_rollup += 1;
+
+        // 10m rollup
+        if self.samples_since_5s_rollup == 5 {
+            let metrics: Vec<NodeMetrics> = self.storage_1s.iter().cloned().rev().take(5).collect();
+            let rollup = NodeMetrics::aggregate_avg(metrics.clone());
+            let length = self.storage_5s.len();
+            if length >= self.limit {
+                self.storage_5s.drain(0..(length - self.limit));
+            }
+            self.storage_5s.push(rollup);
+            self.samples_since_5s_rollup = 0;
+        }
+
+        // 30m Rollup
+        if self.samples_since_15s_rollup == 15 {
+            let metrics: Vec<NodeMetrics> = self.storage_5s.iter().cloned().rev().take(3).collect();
+            let rollup = NodeMetrics::aggregate_avg(metrics.clone());
+            let length = self.storage_15s.len();
+            if length >= self.limit {
+                self.storage_15s.drain(0..(length - self.limit));
+            }
+            self.storage_15s.push(rollup);
+            self.samples_since_15s_rollup = 0;
+        }
     }
 }
 

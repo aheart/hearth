@@ -12,13 +12,59 @@ use std::ops::Add;
 use std::time::{Duration, SystemTime};
 
 #[derive(Default, Clone, Serialize, Message)]
-pub struct NodeMetrics {
+pub struct Node {
+    #[serde(flatten)]
+    specs: NodeSpecs,
+    #[serde(flatten)]
+    metrics: NodeMetrics,
+}
+
+impl Node {
+    pub fn new(specs: NodeSpecs, metrics: NodeMetrics) -> Self {
+        Node { specs, metrics }
+    }
+}
+
+/// Node Specifications are data that changes rarely or doesn't change at all
+#[derive(Default, Clone, Serialize, Message)]
+pub struct NodeSpecs {
     index: u8,
     hostname: String,
-    cpus: u8,
+    cpus: u16,
+    ip: String,
+}
+
+impl NodeSpecs {
+    pub fn new(index: u8, hostname: String, cpus: u16, ip: String) -> Self {
+        NodeSpecs {
+            index,
+            hostname,
+            cpus,
+            ip,
+        }
+    }
+
+    pub fn hostname(&self) -> &str {
+        &self.hostname
+    }
+
+    pub fn get_cpus(&self) -> u16 {
+        self.cpus
+    }
+
+    pub fn update_cpus(&mut self, cpus: u16) {
+        self.cpus = cpus;
+    }
+}
+
+/// Node Metrics are time-series data that changes often
+/// (apart from the hostname that is used for identification at the moment)
+#[derive(Default, Clone, Serialize, Message)]
+pub struct NodeMetrics {
+    #[serde(skip)]
+    hostname: String,
     online: bool,
     uptime_seconds: u64,
-    ip: String,
 
     cpu: CpuMetrics,
     disk: DiskMetrics,
@@ -33,12 +79,9 @@ impl Add for NodeMetrics {
 
     fn add(self, other: Self) -> Self {
         Self {
-            index: 0,
             hostname: "".to_string(),
-            cpus: self.cpus + other.cpus,
             online: false,
             uptime_seconds: self.uptime_seconds + other.uptime_seconds,
-            ip: "".to_string(),
 
             cpu: self.cpu + other.cpu,
             disk: self.disk + other.disk,
@@ -70,6 +113,31 @@ impl NodeMetrics {
         cluster.hostname = "Cluster".to_string();
         cluster
     }
+
+    pub fn aggregate_avg(measurements: Vec<Self>) -> Self {
+        let mut average = NodeMetrics::default();
+        let measurement_count = measurements.len();
+        let last_measurement = measurements.last().unwrap().clone();
+
+        for measurement in measurements {
+            average = average + measurement;
+        }
+
+        if measurement_count > 0 {
+            average.cpu = average.cpu.divide(measurement_count as f32);
+            average.disk = average.disk.divide(measurement_count as f64);
+            average.la = average.la.divide(measurement_count as f64);
+            average.net = average.net.divide(measurement_count as f64);
+            average.ram = average.ram.divide(measurement_count as u64);
+            average.space = average.space.divide(measurement_count as u64);
+        }
+
+        average.hostname = last_measurement.hostname().to_string();
+        average.uptime_seconds = last_measurement.uptime_seconds;
+        average.online = last_measurement.online;
+        average
+    }
+
     pub fn set(&mut self, metrics: Metrics) {
         use Metrics::*;
         match metrics {
@@ -121,23 +189,39 @@ impl MetricAggregator {
         }
     }
 
-    fn send_metrics(&self, ctx: &mut actix::Context<Self>) {
-        let delay = Duration::new(0, 1_000_000_000);
+    fn aggregate(&mut self, _ctx: &mut actix::Context<Self>) -> NodeMetrics {
+        self.provider.get_metrics()
+    }
 
-        ctx.run_later(delay, move |aggregator, ctx| {
-            let mut metrics = aggregator.provider.get_metrics();
-            metrics.index = aggregator.index;
-            aggregator.hub.do_send(metrics);
-            aggregator.send_metrics(ctx);
-        });
+    fn send_metrics(&mut self, metrics: NodeMetrics, _ctx: &mut actix::Context<Self>) {
+        self.hub.do_send(metrics);
+    }
+
+    fn send_specs(&mut self, ctx: &mut actix::Context<Self>) {
+        // TODO: implement proper initialization
+        let ping = self.provider.ssh.run("|");
+        let specs = NodeSpecs::new(
+            self.index,
+            self.provider.ssh.get_hostname().to_string(),
+            self.provider.ssh.get_cpus() as u16,
+            self.provider.ssh.get_ip().to_string(),
+        );
+        self.hub.do_send(specs);
+
+        if ping.is_err() {
+            let delay = Duration::new(1, 0);
+            ctx.run_later(delay, move |aggregator, ctx| {
+                aggregator.send_specs(ctx);
+            });
+        }
     }
 
     fn update_uptime(&self, ctx: &mut actix::Context<Self>) {
         let delay = Duration::new(60, 0);
 
-        ctx.run_later(delay, move |aggreagator, ctx| {
-            aggreagator.provider.ssh.update_uptime();
-            aggreagator.update_uptime(ctx);
+        ctx.run_later(delay, move |aggregator, ctx| {
+            aggregator.provider.ssh.update_uptime();
+            aggregator.update_uptime(ctx);
         });
     }
 }
@@ -147,7 +231,14 @@ impl Actor for MetricAggregator {
 
     fn started(&mut self, ctx: &mut Self::Context) {
         info!("[{}] Aggregator started", self.provider.ssh.get_hostname());
-        self.send_metrics(ctx);
+        self.send_specs(ctx);
+        let interval = Duration::new(0, 1_000_000_000);
+
+        ctx.run_interval(interval, move |aggregator, ctx| {
+            let metrics = aggregator.aggregate(ctx);
+            aggregator.send_metrics(metrics, ctx);
+        });
+
         self.update_uptime(ctx);
     }
 }
@@ -171,9 +262,7 @@ impl MetricProvider {
     fn get_metrics(&mut self) -> NodeMetrics {
         let mut aggregate = self.batch_fetch();
         aggregate.hostname = self.ssh.get_hostname().to_string();
-        aggregate.cpus = self.ssh.get_cpus();
         aggregate.uptime_seconds = self.ssh.get_uptime();
-        aggregate.ip = self.ssh.get_ip().unwrap_or_else(|| "".to_string());
         aggregate
     }
 
@@ -215,6 +304,8 @@ impl MetricProvider {
     }
 
     fn build_empty_metrics(&mut self) -> NodeMetrics {
-        NodeMetrics::default()
+        let mut metrics = NodeMetrics::default();
+        metrics.hostname = self.ssh.get_hostname().to_string();
+        metrics
     }
 }

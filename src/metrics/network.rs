@@ -1,13 +1,22 @@
 use super::{MetricPlugin, Metrics};
+use derive_more::Add;
+use serde_derive::Serialize;
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
-use serde_derive::Serialize;
-use derive_more::Add;
 
 #[derive(Default, PartialEq, Debug, Clone, Serialize, Add)]
 pub struct NetMetrics {
     up_bandwidth: f64,
     down_bandwidth: f64,
+}
+
+impl NetMetrics {
+    pub fn divide(self, divisor: f64) -> Self {
+        Self {
+            up_bandwidth: self.up_bandwidth / divisor,
+            down_bandwidth: self.down_bandwidth / divisor,
+        }
+    }
 }
 
 pub struct NetworkMetricPlugin {
@@ -18,7 +27,10 @@ pub struct NetworkMetricPlugin {
 impl NetworkMetricPlugin {
     pub fn new(interface: &str) -> Self {
         let network = Network::default();
-        let command = format!("cat /sys/class/net/{0}/statistics/rx_bytes /sys/class/net/{0}/statistics/tx_bytes", interface);
+        let command = format!(
+            "cat /sys/class/net/{0}/statistics/rx_bytes /sys/class/net/{0}/statistics/tx_bytes",
+            interface
+        );
         Self { network, command }
     }
 }
@@ -53,20 +65,12 @@ pub struct NetworkStats {
 
 impl Default for NetworkStats {
     fn default() -> Self {
-        Self::new(
-            0,
-            0,
-            UNIX_EPOCH
-        )
+        Self::new(0, 0, UNIX_EPOCH)
     }
 }
 
 impl NetworkStats {
-    pub fn new(
-        rx_bytes: u64,
-        tx_bytes: u64,
-        current_time: SystemTime,
-    ) -> Self {
+    pub fn new(rx_bytes: u64, tx_bytes: u64, current_time: SystemTime) -> Self {
         Self {
             rx_bytes,
             tx_bytes,
@@ -131,7 +135,7 @@ impl Network {
             .duration_since(self.previous_network_stats.current_time())
             .expect("There is a bug in elapsed time calculation");
         let time_elapsed =
-            time_elapsed.as_secs() as f64 + time_elapsed.subsec_millis() as f64 / 1000.0 ;
+            time_elapsed.as_secs() as f64 + time_elapsed.subsec_millis() as f64 / 1000.0;
 
         let rx_bytes = diff!(
             network_stats.rx_bytes(),

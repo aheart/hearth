@@ -1,8 +1,16 @@
 use super::server::WsServer;
+use crate::ws::server::{InboundMessage, View};
 use actix::prelude::*;
 use actix_web_actors::ws;
-use log::warn;
+use log::{error, warn};
+use serde_derive::Deserialize;
+use serde_json;
 use std::time::Instant;
+
+#[derive(Deserialize)]
+struct Command {
+    subscribe_to: View,
+}
 
 #[derive(Message)]
 #[rtype(usize)]
@@ -70,7 +78,15 @@ impl StreamHandler<ws::Message, ws::ProtocolError> for WsSession {
         match msg {
             ws::Message::Ping(msg) => ctx.pong(&msg),
             ws::Message::Pong(_) => self.hb = Instant::now(),
-            ws::Message::Text(_) => warn!("Unexpected text message"),
+            ws::Message::Text(text) => {
+                match serde_json::from_str::<Command>(&text) {
+                    Ok(msg) => self.ws_server.do_send(InboundMessage {
+                        session_id: self.id,
+                        subscribe_to: msg.subscribe_to,
+                    }),
+                    Err(e) => error!("{:?}", e),
+                };
+            }
             ws::Message::Binary(_) => warn!("Unexpected binary"),
             ws::Message::Close(_) => {
                 ctx.stop();

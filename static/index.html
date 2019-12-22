@@ -43,8 +43,8 @@ function Widget() {
         html += `<div style="display: block" class="${sparklineClass}">`
 
             + `<div id="cpu-charts" style="white-space:pre; display: inline-block; width: 370px">`
-            + `<span title="${server.ip}">${server.hostname}</span>`
-            + ` CPU (<span id="cpu-count"></span>) utilization (<span id="immediate-cpu"></span>%)`
+            + `<span>${server.hostname}</span> <span>${server.ip}</span><br />`
+            + `CPU (<span id="cpu-count"></span>) utilization (<span id="immediate-cpu"></span>%)`
             + `<div id="sparkline-cpu"></div>`
             + `</div>`
 
@@ -267,6 +267,12 @@ function MetricProcessor() {
     this.widgets = {};
     this.clusterWidget = {};
 
+
+    this.clearHistory = function() {
+      this.history = {};
+      this.clusterHistory = [];
+
+    };
     this.handleExistingServer = function(serverMetric, type) {
         let storage, history;
         if (type === "NodeMetrics") {
@@ -354,32 +360,9 @@ function MetricProcessor() {
             load_average_history: [serverMetric.la.load_average]
         };
 
-
-
-        let serverNames = Object.values(this.servers)
-            .sort(function (a, b) {
-                return a["index"] - b["index"];
-            }).map(function (server) {
-                return server.hostname
-            });
-
         if (type === "NodeMetrics") {
             this.history[serverMetric.hostname] = history;
-            let $container = $('#charts');
-            $container.html('');
-            serverNames.forEach(serverName => {
-                let widget = new Widget();
-                let server = this.servers[serverName];
-                widget.renderTemplate($container, server);
-                this.widgets[serverName] = widget;
-            });
         } else if (type === "ClusterMetrics") {
-            this.clusterHistory = history;
-            let $aggregateContainer = $('#aggregate-charts');
-            $aggregateContainer.html('');
-            let widget = new Widget();
-            widget.renderTemplate($aggregateContainer, serverMetric);
-            this.clusterWidget = widget;
             this.clusterHistory = history;
         }
     };
@@ -400,38 +383,81 @@ function MetricProcessor() {
         }
     };
 
-    this.updateAggregateMetrics = function(hostname, type) {
+    this.updateCharts = function(hostname, type) {
         let numberOfMachinesUp = Object.keys(this.servers)
                   .filter(key => this.servers[key].online).length;
 
         let numberOfMachines = Object.keys(this.servers).length;
-
         if (type === "NodeMetrics") {
+            if (!this.widgets.hasOwnProperty(hostname)) {
+                let serverNames = Object.values(this.servers)
+                    .sort(function (a, b) {
+                        return a["index"] - b["index"];
+                    }).map(function (server) {
+                        return server.hostname
+                    });
+                let $container = $('#charts');
+                $container.html('');
+                serverNames.forEach(serverName => {
+                    let widget = new Widget();
+                    let server = this.servers[serverName];
+                    widget.renderTemplate($container, server);
+                    this.widgets[serverName] = widget;
+                });
+            }
+
             this.widgets[hostname].update(this.servers[hostname], this.history[hostname]);
         } else if (type === "ClusterMetrics") {
+            if (!(this.clusterWidget instanceof Widget)) {
+                let $aggregateContainer = $('#aggregate-charts');
+                $aggregateContainer.html('');
+                let widget = new Widget();
+                widget.renderTemplate($aggregateContainer, this.cluster);
+                this.clusterWidget = widget;
+            }
+
             this.clusterWidget.update(this.cluster, this.clusterHistory);
             $( "#number-of-machines").html(`${numberOfMachinesUp}/${numberOfMachines}`);
         }
     };
 }
 
+function switchTo2m() {
+    window.view = '{"subscribe_to": "OverviewOneSecond"}';
+    window.metricRepository.clearHistory();
+    window.conn.send(window.view);
+}
+
+function switchTo10m() {
+    window.view = '{"subscribe_to": "OverviewFiveSeconds"}';
+    window.metricRepository.clearHistory();
+    window.conn.send(window.view);
+}
+
+function switchTo30m() {
+    window.view = '{"subscribe_to": "OverviewFifteenSeconds"}';
+    window.metricRepository.clearHistory();
+    window.conn.send(window.view);
+}
+
 $(function() {
     let conn = null;
+    let view = '{"subscribe_to": "OverviewOneSecond"}';
     let metricRepository = new MetricProcessor();
+    window.metricRepository = metricRepository;
     connect();
-    update_ui();
 
     function connect() {
         disconnect();
         let wsUri = (window.location.protocol=='https:'&&'wss://'||'ws://')+window.location.host + '/ws/';
-        conn = new WebSocket(wsUri);
+        window.conn = new WebSocket(wsUri);
         console.log('Connecting...');
-        conn.onopen = function() {
+        window.conn.onopen = function() {
             console.log('Connected.');
-            update_ui();
+            window.conn.send(view);
         };
 
-        conn.onmessage = function(e) {
+        window.conn.onmessage = function(e) {
             let message = JSON.parse(e.data);
             if (!message.hasOwnProperty("data")) {
                 return;
@@ -442,27 +468,20 @@ $(function() {
                 metricRepository.process(metric, message.type);
                 hostname = metric.hostname;
             }
-            metricRepository.updateAggregateMetrics(hostname, message.type);
+            metricRepository.updateCharts(hostname, message.type);
         };
-        conn.onclose = function() {
+        window.conn.onclose = function() {
             console.log('Disconnected.');
-            conn = null;
+            window.conn = null;
             console.log('Attempting to reconnect in 10 seconds');
             setTimeout(connect, 1000);
         };
     }
     function disconnect() {
-        if (conn != null) {
+        if (window.conn != null) {
             console.log('Disconnecting...');
-            conn.close();
-            conn = null;
-        }
-    }
-    function update_ui() {
-        if (conn == null) {
-            console.log('disconnected');
-        } else {
-            console.log('connected (' + conn.protocol + ')');
+            window.conn.close();
+            window.conn = null;
         }
     }
 });
@@ -472,6 +491,9 @@ $(function() {
 <body style="color: #444444; font-size: 12px; font-family:sans-serif">
 <div style="color: #000000; margin-bottom: 1em">
   Machines: <span id="number-of-machines"></span>
+    <button onclick="switchTo2m()">2m</button>
+    <button onclick="switchTo10m()">10m</button>
+    <button onclick="switchTo30m()">30m</button>
 
   <div id="aggregate-charts" style="white-space:pre"></div>
     <br>
