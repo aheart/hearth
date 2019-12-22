@@ -12,6 +12,7 @@ use std::ops::Add;
 use std::time::{Duration, SystemTime};
 
 #[derive(Default, Clone, Serialize, Message)]
+#[rtype(result = "()")]
 pub struct Node {
     #[serde(flatten)]
     specs: NodeSpecs,
@@ -27,6 +28,7 @@ impl Node {
 
 /// Node Specifications are data that changes rarely or doesn't change at all
 #[derive(Default, Clone, Serialize, Message)]
+#[rtype(result = "()")]
 pub struct NodeSpecs {
     index: u8,
     hostname: String,
@@ -60,6 +62,7 @@ impl NodeSpecs {
 /// Node Metrics are time-series data that changes often
 /// (apart from the hostname that is used for identification at the moment)
 #[derive(Default, Clone, Serialize, Message)]
+#[rtype(result = "()")]
 pub struct NodeMetrics {
     #[serde(skip)]
     hostname: String,

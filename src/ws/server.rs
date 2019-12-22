@@ -11,6 +11,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 #[derive(Message)]
+#[rtype(result = "()")]
 pub struct InboundMessage {
     pub session_id: usize,
     pub subscribe_to: View,
@@ -18,12 +19,14 @@ pub struct InboundMessage {
 
 #[derive(Message, Clone, Serialize)]
 #[serde(tag = "type", content = "data")]
+#[rtype(result = "()")]
 pub enum MessageData {
     NodeMetrics(Vec<Node>),
     ClusterMetrics(Vec<Node>),
 }
 
 #[derive(Message, Clone, Serialize)]
+#[rtype(result = "()")]
 pub enum Receiver {
     // At the moment there are no messages addressed to Everyone.
     // Updates are sent only to subscribers of a particular View
@@ -33,6 +36,7 @@ pub enum Receiver {
 }
 
 #[derive(Message, Clone, Serialize)]
+#[rtype(result = "()")]
 pub struct OutboundMessage {
     #[serde(skip)]
     pub receiver: Receiver,
@@ -53,6 +57,7 @@ struct Client {
 }
 
 #[derive(Message)]
+#[rtype(result = "()")]
 pub struct ClientJoined {
     pub session_id: usize,
     pub ws_server: Addr<WsServer>,
