@@ -2,8 +2,16 @@
 <meta charset="utf-8" />
 <html>
 <head>
-<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+<script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-sparklines/2.1.2/jquery.sparkline.js" integrity="sha256-LyvLC4QvPtUU7GAeXnI4atDtDDSKOtUFoIRsysvDSDQ=" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+<style>
+.jqsfield {
+    font-size: 1.5em !important;
+    padding: 0em 1em 1em 0.5em;
+}
+</style>
 <script type="text/javascript">
 "use strict";
 function humanBytes(bytes) {
@@ -12,7 +20,7 @@ function humanBytes(bytes) {
     let i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
     if (i == -1) return Math.round(bytes) + ' B';
     if (i == 0) return Math.round(bytes) + ' ' + sizes[i];
-    return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
+    return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + sizes[i];
 }
 
 function humanKiBytes(kiBytes) {
@@ -40,10 +48,10 @@ function Widget() {
     this.renderTemplate = function ($container, server) {
         let sparklineClass = server.hostname.replace(/[^a-zA-Z0-9]/g,'_');
         let html = "";
-        html += `<div style="display: block" class="${sparklineClass}">`
+        html += `<tr style="display: block" class="${sparklineClass}"><td>`
 
             + `<div id="cpu-charts" style="white-space:pre; display: inline-block; width: 370px">`
-            + `<span>${server.hostname}</span> <span>${server.ip}</span><br />`
+            + `<span style="font-weight: bold">${server.hostname}</span> <span>${server.ip}</span><br />`
             + `CPU (<span id="cpu-count"></span>) utilization (<span id="immediate-cpu"></span>%)`
             + `<div id="sparkline-cpu"></div>`
             + `</div>`
@@ -54,12 +62,12 @@ function Widget() {
             + `</div>`
 
             + `<div id="disk_stat-charts" style="white-space:pre; display: inline-block; width: 370px">`
-            + `Disk Read/Write/Max (<span id="immediate-disk_stat"></span>/s)`
+            + `DISK (<span id="immediate-disk_stat"></span>/s)`
             + `<div id="sparkline-disk_stat"></div>`
             + `</div>`
 
             + `<div id="net_stat-charts" style="white-space:pre; display: inline-block; width: 370px">`
-            + ` NET RX/TX/Max (<span id="immediate-net_stat"></span>/s)`
+            + ` NET (<span id="immediate-net_stat"></span>/s)`
             + `<div id="sparkline-net_stat"></div>`
             + `</div>`
 
@@ -74,7 +82,7 @@ function Widget() {
             + `<div id="sparkline-space"></div>`
             + `</div>`
 
-            + '</div>';
+            + '</td></tr>';
 
         $container.append(html);
         let dotClass = "." + sparklineClass;
@@ -147,63 +155,54 @@ function Widget() {
         );
 
         let max_disk_throughput = thisServer.disk.max_disk_throughput;
-        let read_throughput = thisServer.disk.read_throughput;
-        this.$diskSparkline.sparkline(thisHistory.read_throughput_history, {
-            type: 'line',
+        this.$diskSparkline.sparkline(thisHistory.disk_throughput_history, {
+            type: 'bar',
             height: '3em',
-            chartRangeMax: max_disk_throughput,
-            chartRangeMin: 0,
-            lineColor: '#00178c',
-            fillColor: '#ccd4f5',
-            numberFormatter: function (read_throughput) { return "Read: " + humanBytes(read_throughput) + "/s"}
-        });
-        let write_throughput = thisServer.disk.write_throughput;
-        this.$diskSparkline.sparkline(thisHistory.write_throughput_history, {
-            type: 'line',
-            height: '3em',
-            chartRangeMax: max_disk_throughput,
-            chartRangeMin: 0,
-            lineColor: '#8c0700',
-            fillColor: '#dd7e76',
-            composite:'true',
-            numberFormatter: function (write_throughput) { return "Write: " + humanBytes(write_throughput) + "/s"}
+            normalRangeMin: 0,
+            normalRangeMax: thisServer.disk.max_disk_throughput,
+            stackedBarColor: ['#f5a900', '#0081dd'],
+            barWidth: 3,
+            barSpacing: 0,
+            drawNormalOnTop: true,
+            numberFormatter: humanBytes,
+            tooltipFormatter: function(sp, options, fields) {
+                return '<div class="jqsfield">' + '<span style="color: ' + fields[0].color + '">&#9679;</span> Read: ' + humanBytes(fields[0].value) + '/s</div>' +
+                    '<div class="jqsfield">' + '<span style="color: ' + fields[1].color + '">&#9679;</span> Write: ' + humanBytes(fields[1].value) + '/s</div>';
+            }
         });
         this.$diskScalar.text(
-            humanBytes(read_throughput) +
-            "/s / " +
-            humanBytes(write_throughput) +
-            "/s / " +
+            "R: " +
+            humanBytes(thisServer.disk.read_throughput) +
+            "/s W: " +
+            humanBytes(thisServer.disk.write_throughput) +
+            "/s MAX: " +
             humanBytes(max_disk_throughput)
         );
 
-        let max_net_bandwidth = thisServer.net.max_net_bandwidth;
-        let down_bandwidth = thisServer.net.down_bandwidth;
-        this.$netSparkline.sparkline(thisHistory.down_bandwidth_history, {
-            type: 'line',
+
+        this.$netSparkline.sparkline(thisHistory.net_bandwidth_history, {
+            type: 'bar',
             height: '3em',
-            chartRangeMax: max_net_bandwidth,
-            chartRangeMin: 0,
-            lineColor: '#8c5e00',
-            fillColor: '#f5a900',
-            numberFormatter: function (down_bandwidth) { return "Download: " + humanBytes(down_bandwidth) + "/s"}
-        });
-        let up_bandwidth = thisServer.net.up_bandwidth;
-        this.$netSparkline.sparkline(thisHistory.up_bandwidth_history, {
-            type: 'line',
-            height: '3em',
-            chartRangeMax: max_net_bandwidth,
-            chartRangeMin: 0,
-            lineColor: '#005e8c',
-            fillColor: '#0081dd',
-            composite:'true',
-            numberFormatter: function (up_bandwidth) { return "Upload: " + humanBytes(up_bandwidth) + "/s"}
+            normalRangeMin: 0,
+            normalRangeMax: thisServer.net.max_net_bandwidth,
+            stackedBarColor: ['#0081dd','#f5a900'],
+            normalRangeColor: '#ff0000',
+            barWidth: 3,
+            barSpacing: 0,
+            drawNormalOnTop: true,
+            numberFormatter: humanBytes,
+            tooltipFormatter: function(sp, options, fields) {
+                return '<div class="jqsfield">' + '<span style="color: ' + fields[0].color + '">&#9679;</span> RX: ' + humanBytes(fields[0].value) + '/s</div>' +
+                    '<div class="jqsfield">' + '<span style="color: ' + fields[1].color + '">&#9679;</span> TX: ' + humanBytes(fields[1].value) + '/s</div>';
+            }
         });
         this.$netScalar.text(
-            humanBytes(down_bandwidth) +
-            "/s / " +
-            humanBytes(up_bandwidth) +
-            "/s / " +
-            humanBytes(max_net_bandwidth)
+            "RX: " +
+            humanBytes(thisServer.net.down_bandwidth) +
+            "/s TX: " +
+            humanBytes(thisServer.net.up_bandwidth) +
+            "/s MAX: " +
+            humanBytes(thisServer.net.max_net_bandwidth)
         );
 
         let cpus = thisServer.cpus;
@@ -299,40 +298,23 @@ function MetricProcessor() {
             serverMetric.ram.mem_cached,
             freeMem
         ]);
-        history.read_throughput_history.push(serverMetric.disk.read_throughput);
-        history.write_throughput_history.push(serverMetric.disk.write_throughput);
-        history.down_bandwidth_history.push(serverMetric.net.down_bandwidth);
-        history.up_bandwidth_history.push(serverMetric.net.up_bandwidth);
+        history.disk_throughput_history.push([serverMetric.disk.write_throughput, serverMetric.disk.read_throughput]);
+        history.disk_total_throughput_history.push(serverMetric.disk.read_throughput + serverMetric.disk.write_throughput);
+        history.net_bandwidth_history.push([serverMetric.net.up_bandwidth, serverMetric.net.down_bandwidth]);
+        history.net_total_bandwidth_history.push(serverMetric.net.down_bandwidth + serverMetric.net.up_bandwidth);
         history.load_average_history.push(serverMetric.la.load_average);
         if (history.cpu_history.length > 120) {
             history.cpu_history.splice(0, 1);
             history.mem_history.splice(0, 1);
-            history.read_throughput_history.splice(0, 1);
-            history.write_throughput_history.splice(0, 1);
-            history.down_bandwidth_history.splice(0, 1);
-            history.up_bandwidth_history.splice(0, 1);
+            history.disk_throughput_history.splice(0, 1);
+            history.disk_total_throughput_history.splice(0, 1);
+            history.net_bandwidth_history.splice(0, 1);
+            history.net_total_bandwidth_history.splice(0, 1);
             history.load_average_history.splice(0, 1);
         }
 
-        let max_read_throughput = Math.max(...history.read_throughput_history);
-        let max_write_throughput = Math.max(...history.write_throughput_history);
-
-        let max_disk_throughput = Math.max(
-            max_read_throughput,
-            max_write_throughput,
-        );
-
-        storage['disk']['max_disk_throughput'] = max_disk_throughput;
-
-        let max_down_bandwidth = Math.max(...history.down_bandwidth_history);
-        let max_up_bandwidth = Math.max(...history.up_bandwidth_history);
-
-        let max_net_bandwidth = Math.max(
-            max_down_bandwidth,
-            max_up_bandwidth,
-        );
-
-        storage['net']['max_net_bandwidth'] = max_net_bandwidth;
+        storage['disk']['max_disk_throughput'] = Math.max(...history.disk_total_throughput_history);
+        storage['net']['max_net_bandwidth'] = Math.max(...history.net_total_bandwidth_history);
     };
 
     this.handleNewServer = function(serverMetric, type) {
@@ -353,10 +335,10 @@ function MetricProcessor() {
                 serverMetric.ram.mem_cached,
                 serverMetric.ram.mem_total - (serverMetric.ram.mem_used + serverMetric.ram.mem_buffers + serverMetric.ram.mem_cached),
             ]],
-            read_throughput_history: [serverMetric.disk.read_throughput],
-            write_throughput_history: [serverMetric.disk.write_throughput],
-            down_bandwidth_history: [serverMetric.net.down_bandwidth],
-            up_bandwidth_history: [serverMetric.net.up_bandwidth],
+            disk_throughput_history: [serverMetric.disk.write_throughput, serverMetric.disk.read_throughput],
+            disk_total_throughput_history: [serverMetric.disk.read_throughput + serverMetric.disk.write_throughput],
+            net_bandwidth_history: [serverMetric.net.up_bandwidth, serverMetric.net.down_bandwidth],
+            net_total_bandwidth_history: [serverMetric.net.down_bandwidth + serverMetric.net.up_bandwidth],
             load_average_history: [serverMetric.la.load_average]
         };
 
@@ -488,21 +470,52 @@ $(function() {
 
 </script>
 </head>
-<body style="color: #444444; font-size: 12px; font-family:sans-serif">
-<div style="color: #000000; margin-bottom: 1em">
-  Machines: <span id="number-of-machines"></span>
-    <button onclick="switchTo2m()">2m</button>
-    <button onclick="switchTo10m()">10m</button>
-    <button onclick="switchTo30m()">30m</button>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-secondary shadow-sm">
+    <a class="navbar-brand" href="#">Nodes: <span id="number-of-machines"></span></a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
 
-  <div id="aggregate-charts" style="white-space:pre"></div>
-    <br>
-</div>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="btn-group btn-group-toggle btn-group-sm" data-toggle="buttons">
+            <label class="btn btn-light active">
+                <input type="radio" name="options" id="option1" onclick="switchTo2m()"  checked> 2M (
+                <svg class="bi bi-arrow-repeat" width="1em" height="1em" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" d="M4 9.5a.5.5 0 00-.5.5 6.5 6.5 0 0012.13 3.25.5.5 0 00-.866-.5A5.5 5.5 0 014.5 10a.5.5 0 00-.5-.5z" clip-rule="evenodd"></path>
+                    <path fill-rule="evenodd" d="M4.354 9.146a.5.5 0 00-.708 0l-2 2a.5.5 0 00.708.708L4 10.207l1.646 1.647a.5.5 0 00.708-.708l-2-2zM15.947 10.5a.5.5 0 00.5-.5 6.5 6.5 0 00-12.13-3.25.5.5 0 10.866.5A5.5 5.5 0 0115.448 10a.5.5 0 00.5.5z" clip-rule="evenodd"></path>
+                    <path fill-rule="evenodd" d="M18.354 8.146a.5.5 0 00-.708 0L16 9.793l-1.646-1.647a.5.5 0 00-.708.708l2 2a.5.5 0 00.708 0l2-2a.5.5 0 000-.708z" clip-rule="evenodd"></path>
+                </svg> 1s)
+            </label>
+            <label class="btn btn-light">
+                <input type="radio" name="options" id="option2" onclick="switchTo10m()"> 10M (
+                <svg class="bi bi-arrow-repeat" width="1em" height="1em" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" d="M4 9.5a.5.5 0 00-.5.5 6.5 6.5 0 0012.13 3.25.5.5 0 00-.866-.5A5.5 5.5 0 014.5 10a.5.5 0 00-.5-.5z" clip-rule="evenodd"></path>
+                    <path fill-rule="evenodd" d="M4.354 9.146a.5.5 0 00-.708 0l-2 2a.5.5 0 00.708.708L4 10.207l1.646 1.647a.5.5 0 00.708-.708l-2-2zM15.947 10.5a.5.5 0 00.5-.5 6.5 6.5 0 00-12.13-3.25.5.5 0 10.866.5A5.5 5.5 0 0115.448 10a.5.5 0 00.5.5z" clip-rule="evenodd"></path>
+                    <path fill-rule="evenodd" d="M18.354 8.146a.5.5 0 00-.708 0L16 9.793l-1.646-1.647a.5.5 0 00-.708.708l2 2a.5.5 0 00.708 0l2-2a.5.5 0 000-.708z" clip-rule="evenodd"></path>
+                </svg> 5s)
+            </label>
+            <label class="btn btn-light">
+                <input type="radio" name="options" id="option3" onclick="switchTo30m()"> 30M (
+                <svg class="bi bi-arrow-repeat" width="1em" height="1em" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" d="M4 9.5a.5.5 0 00-.5.5 6.5 6.5 0 0012.13 3.25.5.5 0 00-.866-.5A5.5 5.5 0 014.5 10a.5.5 0 00-.5-.5z" clip-rule="evenodd"></path>
+                    <path fill-rule="evenodd" d="M4.354 9.146a.5.5 0 00-.708 0l-2 2a.5.5 0 00.708.708L4 10.207l1.646 1.647a.5.5 0 00.708-.708l-2-2zM15.947 10.5a.5.5 0 00.5-.5 6.5 6.5 0 00-12.13-3.25.5.5 0 10.866.5A5.5 5.5 0 0115.448 10a.5.5 0 00.5.5z" clip-rule="evenodd"></path>
+                    <path fill-rule="evenodd" d="M18.354 8.146a.5.5 0 00-.708 0L16 9.793l-1.646-1.647a.5.5 0 00-.708.708l2 2a.5.5 0 00.708 0l2-2a.5.5 0 000-.708z" clip-rule="evenodd"></path>
+                </svg> 15s)
+            </label>
+        </div>
+    </div>
+</nav>
+<div style="font-size: 12px;">
+    <div style="margin: 0.5em 0.5em 1em 0.5em">
+        <div id="aggregate-charts" style="white-space:pre"></div>
+        <br>
+    </div>
 
-
-
-<div id="charts" style="white-space:pre">
-    Loading
+    <table  class="table table-sm">
+        <tbody id="charts" style="white-space:pre">
+        </tbody>
+    </table>
 </div>
 </body>
 </html>

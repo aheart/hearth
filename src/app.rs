@@ -13,9 +13,7 @@ use log::info;
 
 pub fn run(config: Config) {
     let env = env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "info");
-
     env_logger::Builder::from_env(env).init();
-
     let sys = actix::System::new("hearth");
 
     let hub = MetricHub::default().start();
@@ -40,7 +38,7 @@ pub fn run(config: Config) {
     })
     .bind(config.address())
     .expect("Can not start server on given IP/Port")
-    .start();
+    .run();
 
     info!("Starting http server: {}", config.address());
     sys.run().expect("There might be a bug in the Actor System");
