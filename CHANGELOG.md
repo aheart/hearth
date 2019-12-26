@@ -8,6 +8,8 @@ This release includes:
   The number of servers on the top of the page is now in the format "online/total". ([Thermatix](https://github.com/Thermatix))
 * [#35](https://github.com/aheart/hearth/issues/35)
   On the very top of the page there are three buttons that allow switching between 3 timeframes.
+* [#72](https://github.com/aheart/hearth/issues/72)
+  Disk charts and Network charts are now rendered using bars instead of lines.
 
 
 0.0.5 (2019-07-30)
