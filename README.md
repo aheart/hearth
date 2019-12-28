@@ -41,7 +41,7 @@ For demo purposes all the charts on the screenshot below are showing data for th
 
 ### Setup
 1. [Download](https://github.com/aheart/hearth/releases) and extract Hearth
-2. Rename **config.toml.dist** to **config.toml** and adjust it to your needs.
+2. Adjust **config.toml** to your needs.
 3. Run the hearth binary and navigate your browser to the ip/port configured in **config.toml**.
 
 
