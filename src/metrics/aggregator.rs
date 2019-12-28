@@ -120,7 +120,11 @@ impl NodeMetrics {
     pub fn aggregate_avg(measurements: Vec<Self>) -> Self {
         let mut average = NodeMetrics::default();
         let measurement_count = measurements.len();
-        let last_measurement = measurements.last().unwrap().clone();
+        if let Some(last_measurement) = measurements.last().cloned() {
+            average.hostname = last_measurement.hostname().to_string();
+            average.uptime_seconds = last_measurement.uptime_seconds;
+            average.online = last_measurement.online;
+        }
 
         for measurement in measurements {
             average = average + measurement;
@@ -135,9 +139,6 @@ impl NodeMetrics {
             average.space = average.space.divide(measurement_count as u64);
         }
 
-        average.hostname = last_measurement.hostname().to_string();
-        average.uptime_seconds = last_measurement.uptime_seconds;
-        average.online = last_measurement.online;
         average
     }
 

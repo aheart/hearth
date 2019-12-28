@@ -78,31 +78,27 @@ impl MetricHub {
 
     fn send_metrics(&self, _ctx: &mut actix::Context<Self>, timeframe: View) {
         for (hostname, specs) in self.node_specs.iter() {
-            let buffer = self.node_buffers.storage().get(hostname).unwrap();
-
-            if !buffer.storage(timeframe).is_empty() {
-                let metrics = buffer.storage(timeframe).last().unwrap().clone();
-                let node = Node::new(specs.clone(), metrics);
-                self.send_to_server(OutboundMessage {
-                    receiver: Receiver::SubscribersOf(timeframe),
-                    data: NodeMetrics(vec![node]),
-                });
+            if let Some(buffer) = self.node_buffers.storage().get(hostname) {
+                if !buffer.storage(timeframe).is_empty() {
+                    let metrics = buffer.storage(timeframe).last().unwrap().clone();
+                    let node = Node::new(specs.clone(), metrics);
+                    self.send_to_server(OutboundMessage {
+                        receiver: Receiver::SubscribersOf(timeframe),
+                        data: NodeMetrics(vec![node]),
+                    });
+                }
             }
         }
 
         if !self.cluster_buffer.storage(timeframe).is_empty() {
-            let metrics = self
-                .cluster_buffer
-                .storage(timeframe)
-                .last()
-                .unwrap()
-                .clone();
-            let specs = self.cluster_specs.clone();
-            let node = Node::new(specs, metrics);
-            self.send_to_server(OutboundMessage {
-                receiver: Receiver::SubscribersOf(timeframe),
-                data: ClusterMetrics(vec![node]),
-            });
+            if let Some(metrics) = self.cluster_buffer.storage(timeframe).last() {
+                let specs = self.cluster_specs.clone();
+                let node = Node::new(specs, metrics.clone());
+                self.send_to_server(OutboundMessage {
+                    receiver: Receiver::SubscribersOf(timeframe),
+                    data: ClusterMetrics(vec![node]),
+                });
+            }
         }
     }
 
@@ -140,17 +136,18 @@ impl MetricHub {
         _: &mut actix::Context<Self>,
     ) {
         for (hostname, buffer) in self.node_buffers.storage() {
-            let specs = self.node_specs.get(hostname).unwrap();
-            let nodes: Vec<Node> = buffer
-                .storage(subscribe_to.clone())
-                .iter()
-                .cloned()
-                .map(|metrics| Node::new(specs.clone(), metrics))
-                .collect();
-            self.send_to_server(OutboundMessage {
-                receiver: Receiver::Only(receiver_id),
-                data: NodeMetrics(nodes),
-            });
+            if let Some(specs) = self.node_specs.get(hostname) {
+                let nodes: Vec<Node> = buffer
+                    .storage(subscribe_to.clone())
+                    .iter()
+                    .cloned()
+                    .map(|metrics| Node::new(specs.clone(), metrics))
+                    .collect();
+                self.send_to_server(OutboundMessage {
+                    receiver: Receiver::Only(receiver_id),
+                    data: NodeMetrics(nodes),
+                });
+            }
         }
     }
 

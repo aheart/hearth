@@ -45,6 +45,5 @@ pub fn run(config: Config) {
     .expect("Can not start server on given IP/Port")
     .run();
 
-    info!("Starting http server: {}", config.address());
     sys.run().expect("There might be a bug in the Actor System");
 }

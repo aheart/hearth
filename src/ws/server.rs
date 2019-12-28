@@ -151,7 +151,8 @@ impl Handler<OutboundMessage> for WsServer {
     type Result = ();
 
     fn handle(&mut self, msg: OutboundMessage, _: &mut Context<Self>) {
-        let message = serde_json::to_string(&msg).unwrap();
+        let message =
+            serde_json::to_string(&msg).expect("Outbound WS message serialization failed");
         match msg.receiver {
             Receiver::Everyone => self.broadcast(message.as_str()),
             Receiver::SubscribersOf(s) => self.multicast(message.as_str(), s),

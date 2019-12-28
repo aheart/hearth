@@ -46,7 +46,7 @@ impl MetricBuffer {
         // 10m rollup
         if self.samples_since_5s_rollup == 5 {
             let metrics: Vec<NodeMetrics> = self.storage_1s.iter().cloned().rev().take(5).collect();
-            let rollup = NodeMetrics::aggregate_avg(metrics.clone());
+            let rollup = NodeMetrics::aggregate_avg(metrics);
             let length = self.storage_5s.len();
             if length >= self.limit {
                 self.storage_5s.drain(0..(length - self.limit));
@@ -58,7 +58,7 @@ impl MetricBuffer {
         // 30m Rollup
         if self.samples_since_15s_rollup == 15 {
             let metrics: Vec<NodeMetrics> = self.storage_5s.iter().cloned().rev().take(3).collect();
-            let rollup = NodeMetrics::aggregate_avg(metrics.clone());
+            let rollup = NodeMetrics::aggregate_avg(metrics);
             let length = self.storage_15s.len();
             if length >= self.limit {
                 self.storage_15s.drain(0..(length - self.limit));
