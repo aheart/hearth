@@ -9,7 +9,6 @@ use actix_files as fs;
 use actix_web::App;
 use actix_web::{web, HttpServer};
 use env_logger;
-use log::info;
 
 pub fn run(config: Config) {
     let env = env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "info");

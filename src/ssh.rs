@@ -1,5 +1,5 @@
 use crate::config::AuthMethod;
-use log::{debug, error, info};
+use log::{debug, info};
 use ssh2::{Channel, Session};
 use std::io::prelude::*;
 use std::net::{TcpStream, ToSocketAddrs};
@@ -84,19 +84,10 @@ impl SshClient {
     }
 
     /// Connect to server, authenticate and fetch the number of CPUs
-    fn connect(&mut self) {
+    fn init(&mut self) -> Result<(), Box<dyn (::std::error::Error)>> {
         self.session = None;
         info!("[{}] Connecting.", self.hostname);
-        let session = match self.try_connect() {
-            Ok(t) => t,
-            Err(e) => {
-                error!(
-                    "[{}] Failed to connect to host, error: {:?}",
-                    self.hostname, e
-                );
-                return;
-            }
-        };
+        let session = self.try_connect()?;
 
         self.session = Some(session);
         info!("[{}] Connection established", self.hostname);
@@ -105,6 +96,7 @@ impl SshClient {
         self.cpus = u8::from_str(cpus.trim_end()).unwrap_or(0);
         self.update_uptime();
         self.ip = self.try_get_ip().unwrap_or_else(|| "".to_string());
+        Ok(())
     }
 
     fn try_connect(&mut self) -> Result<Session, Box<dyn (::std::error::Error)>> {
@@ -148,7 +140,7 @@ impl SshClient {
     fn channel(&mut self) -> Result<Channel, Box<dyn (::std::error::Error)>> {
         match self.session {
             Some(_) => {}
-            None => self.connect(),
+            None => self.init()?,
         };
 
         let session = self.session.as_ref();
