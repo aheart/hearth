@@ -1,3 +1,4 @@
+use crate::config::AuthMethod;
 use log::{debug, error, info};
 use ssh2::{Channel, Session};
 use std::io::prelude::*;
@@ -6,6 +7,7 @@ use std::str::FromStr;
 
 pub struct SshClient {
     username: String,
+    auth_method: AuthMethod,
     hostname: String,
     port: usize,
     session: Option<Session>,
@@ -15,9 +17,10 @@ pub struct SshClient {
 }
 
 impl SshClient {
-    pub fn new(username: String, hostname: String, port: usize) -> Self {
+    pub fn new(username: String, auth_method: AuthMethod, hostname: String, port: usize) -> Self {
         SshClient {
             username,
+            auth_method,
             hostname,
             port,
             session: None,
@@ -124,7 +127,19 @@ impl SshClient {
         session.handshake()?;
 
         debug!("[{}] Authenticating", self.hostname);
-        session.userauth_agent(&*self.username)?;
+        match &self.auth_method {
+            AuthMethod::SshAgent => {
+                session.userauth_agent(&*self.username)?;
+            }
+            AuthMethod::PubKey(config) => {
+                session.userauth_pubkey_file(
+                    &*self.username,
+                    config.public_key_path(),
+                    config.private_key_path(),
+                    config.passphrase(),
+                )?;
+            }
+        }
 
         Ok(session)
     }

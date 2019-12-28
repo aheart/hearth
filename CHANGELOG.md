@@ -10,6 +10,8 @@ This release includes:
   On the very top of the page there are three buttons that allow switching between 3 timeframes.
 * [#72](https://github.com/aheart/hearth/issues/72)
   Disk charts and Network charts are now rendered using bars instead of lines.
+* [#67](https://github.com/aheart/hearth/issues/67)
+  It's now possible to use pubkey authentication.
 
 
 0.0.5 (2019-07-30)
