@@ -77,7 +77,7 @@ function Widget() {
             + `<div id="sparkline-load_average"></div>`
             + `</div>`
 
-            + `<div id="space-charts" style="white-space:pre; display: inline-block; width: 36px">`
+            + `<div id="space-charts" style="white-space:pre; display: inline-block; width: 370px">`
             + ` Space (<span id="immediate-space_stat"></span>)`
             + `<div id="sparkline-space"></div>`
             + `</div>`
@@ -237,14 +237,14 @@ function Widget() {
         colorMap[yellowLevel] = '#FFB00A';
         colorMap[redLevel] = '#A60A02';
         colorMap[blackLevel] = '#000000';
-        this.$spaceSparkline.sparkline([thisServer.space.used], {
+        this.$spaceSparkline.sparkline(thisHistory.space_history, {
             type: 'bar',
             height: '3em',
             chartRangeMax: thisServer.space.total,
             chartRangeMin: 0,
             normalRangeMin: 0,
             normalRangeMax: thisServer.space.total,
-            barWidth: 36,
+            barWidth: 3,
             barSpacing: 0,
             drawNormalOnTop: true,
             colorMap: $.range_map(colorMap),
@@ -303,6 +303,7 @@ function MetricProcessor() {
         history.net_bandwidth_history.push([serverMetric.net.up_bandwidth, serverMetric.net.down_bandwidth]);
         history.net_total_bandwidth_history.push(serverMetric.net.down_bandwidth + serverMetric.net.up_bandwidth);
         history.load_average_history.push(serverMetric.la.load_average);
+        history.space_history.push(serverMetric.space.used);
         if (history.cpu_history.length > 120) {
             history.cpu_history.splice(0, 1);
             history.mem_history.splice(0, 1);
@@ -311,6 +312,7 @@ function MetricProcessor() {
             history.net_bandwidth_history.splice(0, 1);
             history.net_total_bandwidth_history.splice(0, 1);
             history.load_average_history.splice(0, 1);
+            history.space_history.splice(0, 1);
         }
 
         storage['disk']['max_disk_throughput'] = Math.max(...history.disk_total_throughput_history);
@@ -339,7 +341,8 @@ function MetricProcessor() {
             disk_total_throughput_history: [serverMetric.disk.read_throughput + serverMetric.disk.write_throughput],
             net_bandwidth_history: [serverMetric.net.up_bandwidth, serverMetric.net.down_bandwidth],
             net_total_bandwidth_history: [serverMetric.net.down_bandwidth + serverMetric.net.up_bandwidth],
-            load_average_history: [serverMetric.la.load_average]
+            load_average_history: [serverMetric.la.load_average],
+            space_history: [serverMetric.space.used]
         };
 
         if (type === "NodeMetrics") {
@@ -471,7 +474,7 @@ $(function() {
 </script>
 </head>
 <body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-secondary shadow-sm">
+<nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm">
     <a class="navbar-brand" href="#">Nodes: <span id="number-of-machines"></span></a>
     <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>

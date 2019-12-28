@@ -16,7 +16,7 @@ Pre built releases are available for [windows and linux](https://github.com/ahea
 ### Features
 Examine health and load patterns via a number of metrics across a small cluster.
 
-For demo purposes all the charts are showing data for the same machine under different hostnames.
+For demo purposes all the charts on the screenshot below are showing data for the same machine under different hostnames.
 ![screenshot](./assets/screenshot.png)
 
 
@@ -35,6 +35,9 @@ For demo purposes all the charts are showing data for the same machine under dif
 ##### Load Average
 ![screenshot](./assets/load-average.gif)
 
+##### Disk Space
+![screenshot](./assets/space.gif)
+
 
 ### Setup
 1. [Download](https://github.com/aheart/hearth/releases) and extract Hearth
@@ -44,7 +47,6 @@ For demo purposes all the charts are showing data for the same machine under dif
 
 ### Limitations
 * Data can only be retrieved via SSH.
-* Only ssh-agent authentication is supported.
 * Only a single network interface can be monitored per server.
 * Only a single disk can be monitored per server.
 * Current UI only works well on wide screens
