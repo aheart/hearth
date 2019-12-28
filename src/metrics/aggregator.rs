@@ -1,5 +1,5 @@
 use super::hub::MetricHub;
-use crate::config::ServerConfig;
+use crate::config::{AuthMethod, ServerConfig};
 use crate::metrics::{
     cpu::CpuMetrics, disk::DiskMetrics, la::LaMetrics, network::NetMetrics, ram::RamMetrics,
     space::SpaceMetrics, MetricPlugin, Metrics,
@@ -157,10 +157,12 @@ impl NodeMetrics {
 pub fn metric_aggregator_factory(
     hub: Addr<MetricHub>,
     server_config: &ServerConfig,
+    auth_method: AuthMethod,
     index: u8,
 ) -> MetricAggregator {
     let ssh = SshClient::new(
         server_config.username.clone(),
+        auth_method,
         server_config.hostname.clone(),
         22,
     );

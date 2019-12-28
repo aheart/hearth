@@ -26,7 +26,12 @@ pub fn run(config: Config) {
         .iter()
         .enumerate()
         .for_each(|(index, server_config)| {
-            let aggregator = metric_aggregator_factory(hub.clone(), server_config, index as u8 + 1);
+            let aggregator = metric_aggregator_factory(
+                hub.clone(),
+                server_config,
+                config.authentication.clone(),
+                index as u8 + 1,
+            );
             Actor::start_in_arbiter(&Arbiter::new(), |_| aggregator);
         });
 

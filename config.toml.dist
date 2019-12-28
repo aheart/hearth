@@ -2,6 +2,15 @@
 ip = "127.0.0.1"
 port = 80
 
+[authentication]
+method = "ssh_agent"
+
+#alternatively you can use the pub_key method
+#method = "pub_key"
+#private_key = "/home/alex/.ssh/id_rsa"
+#public_key = "/home/alex/.ssh/id_rsa.pub" #optional
+#passphrase = "hunter2" #optional
+
 
 # This section configures the servers that should be monitored
 [[servers]]
