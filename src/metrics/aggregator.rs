@@ -83,7 +83,7 @@ impl Add for NodeMetrics {
     fn add(self, other: Self) -> Self {
         Self {
             hostname: "".to_string(),
-            online: false,
+            online: self.online,
             uptime_seconds: self.uptime_seconds + other.uptime_seconds,
 
             cpu: self.cpu + other.cpu,
