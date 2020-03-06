@@ -1,6 +1,6 @@
 [package]
 name = "hearth"
-version = "0.0.6"
+version = "0.0.7"
 edition = "2018"
 
 [dependencies]
@@ -17,7 +17,7 @@ actix-rt = "1.0"
 actix-web = "2.0.0"
 actix-files = "0.2"
 actix-web-actors = "2.0"
-ssh2 = "0.6"
+ssh2 = "0.7"
 derive_more = "0.99"
 
 [profile.release]
