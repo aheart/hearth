@@ -38,16 +38,6 @@ impl SshClient {
         &self.ip
     }
 
-    fn try_get_ip(&self) -> Option<String> {
-        self.session
-            .as_ref()?
-            .tcp_stream()
-            .as_ref()?
-            .peer_addr()
-            .and_then(|socket| Ok(socket.ip().to_string()))
-            .ok()
-    }
-
     pub fn get_cpus(&self) -> u8 {
         self.cpus
     }
@@ -95,7 +85,6 @@ impl SshClient {
         let cpus = self.run("nproc").unwrap_or_else(|_| "0".to_string());
         self.cpus = u8::from_str(cpus.trim_end()).unwrap_or(0);
         self.update_uptime();
-        self.ip = self.try_get_ip().unwrap_or_else(|| "".to_string());
         Ok(())
     }
 
@@ -109,6 +98,7 @@ impl SshClient {
         debug!("[{}] Opening TCP connection", self.hostname);
         let timeout = ::std::time::Duration::from_secs(1);
         let tcp = TcpStream::connect_timeout(&socket_address, timeout)?;
+        self.ip = tcp.peer_addr()?.ip().to_string();
 
         debug!("[{}] Initializing session", self.hostname);
         let mut session = Session::new()?;
