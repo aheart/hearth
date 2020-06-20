@@ -84,7 +84,7 @@ impl Add for NodeMetrics {
         Self {
             hostname: "".to_string(),
             online: self.online,
-            uptime_seconds: self.uptime_seconds + other.uptime_seconds,
+            uptime_seconds: self.uptime_seconds,
 
             cpu: self.cpu + other.cpu,
             disk: self.disk + other.disk,
