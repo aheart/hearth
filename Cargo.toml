@@ -17,7 +17,7 @@ actix-rt = "1.1"
 actix-web = "3.0"
 actix-files = "0.3"
 actix-web-actors = "3.0"
-ssh2 = "0.8"
+ssh2 = "0.9"
 derive_more = "0.99"
 
 [profile.release]
