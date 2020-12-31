@@ -2,8 +2,8 @@
 ===================
 This is a maintenance release, but it includes on bug fix:
 
-* [e08f279](https://github.com/aheart/hearth/commit/98ee6d86124204ce727e0926900ba97f40840545):
-  SSH session will now timeout after 5 seconds of waiting for a blocking operation.
+* [98ee6d8](https://github.com/aheart/hearth/commit/98ee6d86124204ce727e0926900ba97f40840545):
+  Uptime is now correct on all timeframes
 
 
 0.0.6 (2019-12-31)
