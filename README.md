@@ -11,7 +11,7 @@ It is particularly useful if you:
 * don't care about historical data (>30 minutes)
 * want to make the charts available to a number of people via a Web UI
 
-Pre built releases are available for [windows and linux](https://github.com/aheart/hearth/releases).
+Pre-built binaries are available for [linux](https://github.com/aheart/hearth/releases).
 
 ### Features
 Examine health and load patterns via a number of metrics across a small cluster.
