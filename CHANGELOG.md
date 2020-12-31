@@ -1,6 +1,10 @@
+0.0.8 (2020-xx-xx)
+===================
+This release includes:
+
 0.0.7 (2020-01-31)
 ===================
-This is a maintenance release, but it includes on bug fix:
+This is a maintenance release, but it includes one bug fix:
 
 * [98ee6d8](https://github.com/aheart/hearth/commit/98ee6d86124204ce727e0926900ba97f40840545):
   Uptime is now correct on all timeframes
