@@ -1,6 +1,14 @@
-0.0.8 (2020-xx-xx)
+0.0.9 (2022-xx-xx)
 ===================
 This release includes:
+
+
+0.0.8 (2022-06-17)
+===================
+This release includes:
+
+* [#91](https://github.com/aheart/hearth/issues/91)
+  Update to Actix Web 4
 
 0.0.7 (2020-01-31)
 ===================
