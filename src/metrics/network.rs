@@ -89,7 +89,7 @@ impl NetworkStats {
                     .and_then(|v| u64::from_str(v).ok())
                     .unwrap_or(0)
             };
-        };
+        }
 
         Self::new(
             parse_number!(dist_stats, 0),
