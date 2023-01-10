@@ -100,7 +100,6 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsSession {
             ws::Message::Binary(_) => warn!("Unexpected binary"),
             ws::Message::Close(_) => {
                 ctx.stop();
-                ctx.stop();
             }
             ws::Message::Continuation(_) => {
                 ctx.stop();

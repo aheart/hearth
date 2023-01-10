@@ -270,8 +270,8 @@ function MetricProcessor() {
     this.clearHistory = function() {
       this.history = {};
       this.clusterHistory = [];
-
     };
+
     this.handleExistingServer = function(serverMetric, type) {
         let storage, history;
         if (type === "NodeMetrics") {
@@ -320,7 +320,6 @@ function MetricProcessor() {
     };
 
     this.handleNewServer = function(serverMetric, type) {
-
         let history = {
             cpu_history: [[
                 serverMetric.cpu.user,
