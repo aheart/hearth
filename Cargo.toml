@@ -18,7 +18,7 @@ actix-web = "4"
 actix-files = "0.6"
 actix-web-actors = "4"
 ssh2 = "0.9"
-derive_more = "0.99"
+derive_more = { version = "1.0.0", features = ["add"] }
 
 [profile.release]
 lto = "thin"
