@@ -78,7 +78,7 @@ impl WsServer {
         Self {
             hub,
             sessions: HashMap::new(),
-            rng: RefCell::new(rand::thread_rng()),
+            rng: RefCell::new(rand::rng()),
         }
     }
 
@@ -112,9 +112,9 @@ impl Handler<Connect> for WsServer {
     type Result = usize;
 
     fn handle(&mut self, msg: Connect, _ctx: &mut Context<Self>) -> Self::Result {
-        let id = self.rng.borrow_mut().gen::<usize>();
+        let id = self.rng.borrow_mut().random::<u64>() as usize;
         self.sessions.insert(
-            id,
+            id as usize,
             Client {
                 address: msg.addr.clone(),
                 subscription: View::OverviewOneSecond,
