@@ -4,7 +4,7 @@ version = "0.0.9"
 edition = "2021"
 
 [dependencies]
-rand = "0.9"
+rand = "0.10"
 futures = "0.3"
 log = "0.4"
 env_logger = "0.11"
