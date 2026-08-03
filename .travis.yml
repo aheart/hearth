@@ -1,3 +1,6 @@
+os:
+  - linux
+  - osx
 dist: trusty
 sudo: required
 cache: cargo
@@ -9,6 +12,9 @@ addons:
 
 rust:
   - nightly
+
+before_install:
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew install openssl; fi
 
 script:
   - cargo build
